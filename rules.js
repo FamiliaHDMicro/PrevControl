@@ -76,45 +76,50 @@ const BENEFITS = {
           "Não sei o que é CNIS"
         ],
         required: true
+      },
+      {
+        id: "first_contribution_year",
+        label: "Em que ano você começou a contribuir para o INSS?",
+        type: "number",
+        unit: "ano",
+        required: true
+      },
+      {
+        id: "carency_months",
+        label: "Aproximadamente quantos meses de contribuição aparecem no seu histórico?",
+        type: "number",
+        unit: "meses",
+        required: true
+      },
+      {
+        id: "transition_or_special",
+        label: "Existe período rural, especial, como professor ou alguma regra de transição no seu histórico?",
+        type: "choice",
+        options: [
+          "Sim",
+          "Não",
+          "Não sei informar"
+        ],
+        required: true
       }
     ],
 
     evaluate(answers) {
       const age = Number(answers.age);
       const contrib = Number(answers.contrib_years);
-      const gender = answers.gender;
+      const carencyMonths = Number(answers.carency_months);
 
-      if (!age || !contrib) {
+      if (!age || !contrib || !carencyMonths) {
         return {
           class: "precisa_avaliacao",
-          rationale: "Precisamos conferir sua idade, seu tempo de contribuição e seus registros no CNIS."
-        };
-      }
-
-      const idadeBase = gender === "Mulher" ? 62 : 65;
-      const tempoBase = gender === "Mulher" ? 15 : 20;
-
-      if (age >= idadeBase && contrib >= tempoBase) {
-        return {
-          class: "provavel_analise",
-          rationale:
-            `Você já está na faixa de idade e tempo que merece uma conferência mais detalhada. ` +
-            `Isso não confirma automaticamente a aposentadoria: precisamos conferir o CNIS, a carência, os períodos trabalhados e possíveis regras de transição.`
-        };
-      }
-
-      if (age >= idadeBase - 3 || contrib >= tempoBase - 3) {
-        return {
-          class: "planejamento",
-          rationale:
-            "Você está relativamente perto dos requisitos básicos. Vale conferir seu histórico agora para descobrir qual regra pode se encaixar no seu caso e evitar perda de tempo."
+          rationale: "Precisamos conferir idade, tempo de contribuição, carência em meses, CNIS e a data de ingresso no RGPS."
         };
       }
 
       return {
-        class: "planejamento",
+        class: "precisa_avaliacao",
         rationale:
-          "Ainda pode faltar tempo ou idade, mas isso não significa que não exista algo para fazer. Uma conferência antecipada pode ajudar a organizar seu histórico e planejar os próximos passos."
+          "As respostas indicam que vale fazer uma análise previdenciária. A regra aplicável pode ser programada, de transição ou de direito adquirido; o resultado depende do CNIS, da carência em meses, das datas e dos documentos."
       };
     }
   },
@@ -129,6 +134,33 @@ const BENEFITS = {
         label: "Qual sua idade?",
         type: "number",
         unit: "anos",
+        required: true
+      },
+      {
+        id: "gender",
+        label: "Como deve ser considerada sua condição para esta análise?",
+        type: "choice",
+        options: ["Homem", "Mulher", "Prefiro não informar"],
+        required: true
+      },
+      {
+        id: "rural_category",
+        label: "Qual era sua categoria de trabalho rural?",
+        type: "choice",
+        options: [
+          "Segurado especial / agricultura familiar",
+          "Empregado rural",
+          "Contribuinte individual rural",
+          "Trabalhador avulso rural",
+          "Não sei informar"
+        ],
+        required: true
+      },
+      {
+        id: "rural_recent",
+        label: "Você trabalhava no meio rural no período próximo ao pedido ou quando completou os requisitos?",
+        type: "choice",
+        options: ["Sim", "Não", "Não sei informar"],
         required: true
       },
       {
@@ -155,19 +187,24 @@ const BENEFITS = {
     evaluate(answers) {
       const age = Number(answers.age);
       const ruralYears = Number(answers.rural_years);
+      const gender = answers.gender;
 
-      if (age >= 55 && ruralYears >= 15) {
+      if (!age || !ruralYears || !gender) {
         return {
-          class: "provavel_analise",
-          rationale:
-            "Sua situação merece uma análise previdenciária específica para atividade rural. Os documentos que comprovam o trabalho rural serão muito importantes."
+          class: "precisa_avaliacao",
+          rationale: "Precisamos conferir idade, categoria rural, períodos, condição previdenciária e documentos."
         };
       }
+
+      const ageReference = gender === "Mulher" ? 55 : 60;
+      const referenceMessage = age >= ageReference && ruralYears >= 15
+        ? "Há indicadores que justificam uma análise específica."
+        : "Mesmo que os números não pareçam suficientes, pode existir outra regra ou aposentadoria híbrida a examinar.";
 
       return {
         class: "precisa_avaliacao",
         rationale:
-          "A aposentadoria rural tem regras próprias. Precisamos olhar idade, período rural e os documentos que comprovam essa atividade."
+          `${referenceMessage} A aposentadoria rural depende de carência, categoria, período qualificável, atividade rural e prova documental; esta triagem não confirma direito.`
       };
     }
   },
@@ -296,24 +333,37 @@ const BENEFITS = {
           "Não"
         ],
         required: true
+      },
+      {
+        id: "insured_status",
+        label: "Você sabe se ainda mantém qualidade de segurado do INSS?",
+        type: "choice",
+        options: ["Sim", "Não", "Não sei informar"],
+        required: true
+      },
+      {
+        id: "contribution_months",
+        label: "Aproximadamente quantas contribuições mensais você tem?",
+        type: "number",
+        unit: "meses",
+        required: true
+      },
+      {
+        id: "habitual_work",
+        label: "A condição impede sua atividade habitual?",
+        type: "choice",
+        options: ["Sim", "Não", "Não sei informar"],
+        required: true
       }
     ],
 
     evaluate(answers) {
       const days = Number(answers.days);
 
-      if (days > 15) {
-        return {
-          class: "provavel_analise",
-          rationale:
-            "Como a incapacidade já passa de 15 dias, sua situação merece conferência previdenciária. É importante reunir atestados, exames e documentos do trabalho."
-        };
-      }
-
       return {
         class: "precisa_avaliacao",
         rationale:
-          "Ainda precisamos entender a duração da incapacidade, a causa e seus documentos médicos para saber qual caminho pode ser adequado."
+          `A informação de ${days || "determinado número de"} dias é apenas um ponto inicial. O benefício depende de qualidade de segurado, carência ou hipótese de dispensa, incapacidade para a atividade habitual e avaliação médica ou documental do INSS.`
       };
     }
   },
@@ -505,9 +555,23 @@ const BENEFITS = {
       },
       {
         id: "income",
-        label: "Qual é aproximadamente a renda mensal da família?",
-        type: "text",
-        placeholder: "Ex.: R$ 1.500,00",
+        label: "Qual é aproximadamente a renda mensal total da família?",
+        type: "number",
+        unit: "reais",
+        required: true
+      },
+      {
+        id: "cadunico",
+        label: "O CadÚnico está atualizado?",
+        type: "choice",
+        options: ["Sim", "Não", "Não sei informar"],
+        required: true
+      },
+      {
+        id: "long_term",
+        label: "Existe impedimento de longo prazo, com efeitos esperados por pelo menos dois anos?",
+        type: "choice",
+        options: ["Sim", "Não", "Não sei informar"],
         required: true
       }
     ],
@@ -515,19 +579,13 @@ const BENEFITS = {
     evaluate(answers) {
       const age = Number(answers.age);
       const disability = answers.disability === "Sim";
-
-      if (age >= 65 || disability) {
-        return {
-          class: "precisa_avaliacao",
-          rationale:
-            "Você está dentro de uma das situações que podem levar à análise do BPC. A renda familiar, a composição da família e outros critérios precisam ser conferidos com os documentos oficiais."
-        };
-      }
+      const family = Number(answers.family);
+      const income = Number(answers.income);
 
       return {
         class: "precisa_avaliacao",
         rationale:
-          "Pelas respostas iniciais, precisamos verificar se existe outra possibilidade de benefício ou assistência. A análise não deve ser encerrada somente pelo formulário."
+          `O BPC exige análise da idade ou deficiência, impedimento de longo prazo, composição legal da família, renda familiar per capita, CadÚnico e demais elementos de vulnerabilidade. ${age >= 65 || disability ? "Há um motivo para aprofundar a análise." : "A ausência de um indicador inicial não encerra a avaliação."} ${family && income >= 0 ? "Os dados de renda informados serão apenas ponto de partida e não substituem a avaliação administrativa." : "Informe renda e composição familiar para organizar os documentos."}`
       };
     }
   },
@@ -568,9 +626,9 @@ const BENEFITS = {
     evaluate(answers) {
       if (answers.proof === "Sim") {
         return {
-          class: "provavel_analise",
+          class: "precisa_avaliacao",
           rationale:
-            "Você possui documentos que podem ajudar na correção. Precisamos comparar esses documentos com o CNIS."
+            "Os documentos podem ajudar na correção, mas é necessário comparar cada período, vínculo, remuneração e indicador com o CNIS."
         };
       }
 
@@ -692,6 +750,34 @@ const BENEFITS = {
           "Não",
           "Ainda não recebi"
         ],
+        required: true
+      },
+      {
+        id: "admission_date",
+        label: "Qual foi a data de admissão?",
+        type: "text",
+        placeholder: "Ex.: 10/02/2021",
+        required: true
+      },
+      {
+        id: "termination_date",
+        label: "Qual foi a data de saída ou do aviso?",
+        type: "text",
+        placeholder: "Ex.: 10/09/2026",
+        required: true
+      },
+      {
+        id: "stability",
+        label: "Existe gravidez, acidente/doença do trabalho ou outra possível estabilidade?",
+        type: "choice",
+        options: ["Sim", "Não", "Não sei informar"],
+        required: true
+      },
+      {
+        id: "fgts_statement",
+        label: "Você tem o extrato do FGTS e os comprovantes de pagamento?",
+        type: "choice",
+        options: ["Sim", "Alguns", "Não"],
         required: true
       }
     ],
@@ -885,10 +971,19 @@ const BENEFITS = {
         label: "Você recebe algum adicional?",
         type: "choice",
         options: [
-          "Sim",
-          "Não",
-          "Não sei"
+          "Insalubridade",
+          "Periculosidade",
+          "Outro adicional",
+          "Não recebo",
+          "Não sei informar"
         ],
+        required: true
+      },
+      {
+        id: "technical_document",
+        label: "Existe laudo, PPP, PGR ou outro documento sobre o ambiente de trabalho?",
+        type: "choice",
+        options: ["Sim", "Não", "Não sei informar"],
         required: true
       }
     ],
@@ -912,11 +1007,18 @@ const BENEFITS = {
         label: "O que aconteceu?",
         type: "choice",
         options: [
-          "Acidente no trabalho",
-          "Acidente no caminho",
-          "Doença relacionada ao trabalho",
-          "Não sei"
+          "Acidente no local ou durante a atividade de trabalho",
+          "Acidente no deslocamento relacionado ao trabalho",
+          "Doença possivelmente relacionada ao trabalho",
+          "Não sei informar"
         ],
+        required: true
+      },
+      {
+        id: "cat",
+        label: "Foi emitida CAT ou existe algum registro do acidente?",
+        type: "choice",
+        options: ["Sim", "Não", "Não sei informar"],
         required: true
       },
       {
