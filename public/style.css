@@ -235,6 +235,120 @@ img {
 
 
 /* ============================================================
+   TICKER DE NOTÍCIAS E SERVIÇOS
+============================================================ */
+
+.news-ticker {
+  position: relative;
+  z-index: 20;
+
+  min-height: 48px;
+
+  display: flex;
+  align-items: stretch;
+
+  overflow: hidden;
+
+  border-bottom:
+    1px solid rgba(96, 165, 250, 0.2);
+
+  background:
+    linear-gradient(
+      90deg,
+      #0d2744,
+      #0a1b30 55%,
+      #0d2744
+    );
+}
+
+.news-ticker-label {
+  position: relative;
+  z-index: 2;
+
+  flex: 0 0 auto;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+
+  padding: 0 22px;
+
+  background: var(--primary);
+
+  color: white;
+
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.news-live-dot {
+  width: 7px;
+  height: 7px;
+
+  border-radius: 50%;
+
+  background: #bfdbfe;
+
+  box-shadow: 0 0 0 4px rgba(191, 219, 254, 0.15);
+}
+
+.news-ticker-window {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.news-ticker-track {
+  width: max-content;
+  min-height: 48px;
+
+  display: flex;
+  align-items: center;
+
+  animation: news-ticker-scroll 34s linear infinite;
+}
+
+.news-ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+
+  min-height: 48px;
+  padding: 0 30px;
+
+  border-right:
+    1px solid rgba(148, 163, 184, 0.18);
+
+  color: var(--text-soft);
+
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.news-ticker-item strong {
+  color: #93c5fd;
+
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+}
+
+.news-ticker-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+}
+
+@keyframes news-ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+
+/* ============================================================
    HERO / BANNER
 ============================================================ */
 
@@ -1318,7 +1432,7 @@ textarea.input-base {
   display: grid;
 
   grid-template-columns:
-    2fr repeat(3, 1fr);
+    2fr repeat(4, 1fr);
 
   gap: 50px;
 }
@@ -1576,10 +1690,6 @@ textarea.input-base {
       1.5fr 1fr 1fr;
   }
 
-  .footer-column:last-child {
-    display: none;
-  }
-
 }
 
 
@@ -1703,16 +1813,20 @@ textarea.input-base {
       1fr;
   }
 
-  .footer-column:last-child {
-    display: flex;
-  }
-
   .nav-row {
     flex-direction: column-reverse;
   }
 
   .nav-row .nav-btn {
     width: 100%;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .news-ticker-track {
+    animation: none;
   }
 
 }
