@@ -1,10 +1,10 @@
-# PrevControl — Triagem Previdenciária Gratuita
+# PrevControl — Triagem Previdenciária e Trabalhista
 
 Sistema de triagem determinística para escritório previdenciário. Custo zero, acessível e sem IA generativa paga.
 
 ## Estrutura
 - `index.js` — Worker principal (APIs + autenticação + servir assets)
-- `rules.js` — Motor de regras fixas (sem alucinação, linguagem simples)
+- `rules.js` — Motor de regras fixas (linguagem simples, cálculo automático)
 - `public/` — Frontend acessível (HTML/CSS/JS)
 - `wrangler.jsonc` — Configuração Cloudflare Pages + D1
 
@@ -22,3 +22,4 @@ Tabela `leads` já criada no D1 remoto (`prevcontrol-db`). Schema validado via S
 - ARIA labels em todos os elementos interativos
 - Contraste alto + fallback para celulares lentos (backdrop-filter)
 - Linguagem simplificada (sem juridiquês, cálculo automático de renda per capita)
+- Barra de utilidade pública com links oficiais (Gov.br, SEBRAE, Defensoria)
