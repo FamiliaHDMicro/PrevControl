@@ -1,39 +1,15 @@
-// PrevConsulta — Frontend (Terminal Burro)
-// Navegação horizontal em módulos · Custo zero
-
+// app.js — Frontend PrevControl (Terminal Burdo Inteligente)
 const WHATSAPP_NUMBER = "5517991087449";
-
-const state = {
-  currentSlide: 0,
-  slides: [],
-  answers: {
-    nome: '', telefone: '',
-    routerValue: null, benefitKey: null, benefitLabel: '',
-    questionAnswers: {}, observacao: ''
-  },
-  routerOptions: [],
-  benefits: {},
-  campoLivre: null
-};
-
-function mascaraTelefone(valor) {
-  const d = valor.replace(/\D/g, '').slice(0, 11);
-  if (d.length <= 2) return d.length ? `(${d}` : '';
-  if (d.length <= 7) return `(${d.slice(0,2)}) ${d.slice(2)}`;
-  return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7,11)}`;
-}
+const state = { currentSlide: 0, slides: [], answers: {}, routerOptions: [], benefits: {} };
 
 async function loadConfig() {
   try {
-    const res = await fetch('/api/config');
+    const res = await fetch('/api/benefits');
     const data = await res.json();
-    state.routerOptions = data.router.options;
     state.benefits = {};
     data.benefits.forEach(b => { state.benefits[b.key] = b; });
-    state.campoLivre = data.campoLivre;
-  } catch (e) {
-    console.error('Erro ao carregar config:', e);
-  }
+    state.routerOptions = data.benefits.map(b => ({ value: b.key, label: b.label }));
+  } catch (e) { console.error('Erro ao carregar config:', e); }
   buildSlides();
 }
 
@@ -65,19 +41,19 @@ function renderSlide(slide, i) {
 
 function renderWelcome(i) {
   return `
-    <div class="slide" data-slide="${i}">
+    <div class="slide" data-slide="${i}" role="region" aria-label="Boas-vindas">
       <div class="module-card">
-        <div class="module-number">👋 Início</div>
+        <div class="module-number"> Início</div>
         <h2 class="module-title">Descubra se você tem direito ao seu benefício</h2>
         <p class="module-subtitle">Responda algumas perguntas simples. É rápido, sem complicação e sem juridiquês.</p>
         <div class="field-group">
-          <label class="field-label">Seu nome completo</label>
-          <input id="field-nome" class="input-base" placeholder="Como podemos te chamar?" value="${state.answers.nome}" maxlength="60">
+          <label class="field-label" for="field-nome">Seu nome completo</label>
+          <input id="field-nome" class="input-base" placeholder="Como podemos te chamar?" value="${state.answers.nome}" maxlength="60" aria-required="true">
         </div>
         <div class="field-group">
-          <label class="field-label">WhatsApp (com DDD)</label>
-          <input id="field-telefone" class="input-base" placeholder="(17) 99999-9999" value="${state.answers.telefone}" maxlength="15">
-          <div class="field-error" id="erro-welcome"></div>
+          <label class="field-label" for="field-telefone">WhatsApp (com DDD)</label>
+          <input id="field-telefone" class="input-base" placeholder="(17) 99999-9999" value="${state.answers.telefone}" maxlength="15" aria-required="true">
+          <div class="field-error" id="erro-welcome" role="alert"></div>
         </div>
         <div class="nav-row" style="justify-content: flex-end;">
           <button onclick="nextSlide()" class="nav-btn nav-btn-primary">Continuar →</button>
@@ -88,14 +64,19 @@ function renderWelcome(i) {
 
 function renderRouter(i) {
   return `
-    <div class="slide" data-slide="${i}">
+    <div class="slide" data-slide="${i}" role="region" aria-label="Seleção de benefício">
       <div class="module-card">
         <div class="module-number">📋 Etapa 1</div>
         <h2 class="module-title">O que está acontecendo com você hoje?</h2>
-        <p class="module-subtitle">Escolha a opção que mais se parece com a sua situação.</p>
-        <div class="options-stack">
+        <p class="module-subtitle">Escolha a opção que mais se parece com sua situação.</p>
+        <div class="options-stack" role="radiogroup" aria-label="Tipos de benefício">
           ${state.routerOptions.map((o, idx) => `
-            <button onclick="selectRouter('${o.value}', this)" class="option-btn ${state.answers.routerValue === o.value ? 'selected' : ''}" data-value="${o.value}">
+            <button onclick="selectRouter('${o.value}', this)" 
+              class="option-btn ${state.answers.routerValue === o.value ? 'selected' : ''}" 
+              data-value="${o.value}" 
+              role="radio" 
+              aria-checked="${state.answers.routerValue === o.value}"
+              aria-label="${o.label}">
               <span class="option-marker">${idx + 1}</span>
               <span>${o.label}</span>
             </button>
@@ -115,28 +96,33 @@ function renderQuestion(slide, i) {
   let inputHtml = '';
   if (q.type === 'choice') {
     inputHtml = `
-      <div class="options-stack">
+      <div class="options-stack" role="radiogroup" aria-label="${q.label}">
         ${q.options.map((op, idx) => `
-          <button onclick="selectChoice('${q.id}', '${op}', this)" class="option-btn ${currentVal === op ? 'selected' : ''}" data-value="${op}">
+          <button onclick="selectChoice('${q.id}', '${op}', this)" 
+            class="option-btn ${currentVal === op ? 'selected' : ''}" 
+            data-value="${op}"
+            role="radio"
+            aria-checked="${currentVal === op}"
+            aria-label="${op}">
             <span class="option-marker">${String.fromCharCode(65 + idx)}</span>
             <span>${op}</span>
           </button>
         `).join('')}
       </div>`;
   } else if (q.type === 'number') {
-    inputHtml = `<input id="field-${q.id}" class="input-base" type="number" min="0" placeholder="Ex: ${q.unit === 'anos' ? '25' : '12'}" value="${currentVal}">`;
+    inputHtml = `<input id="field-${q.id}" class="input-base" type="number" min="0" placeholder="Ex: ${q.unit === 'anos' ? '25' : '12'}" value="${currentVal}" aria-label="${q.label}">`;
   } else {
-    inputHtml = `<input id="field-${q.id}" class="input-base" type="text" placeholder="Sua resposta" value="${currentVal}">`;
+    inputHtml = `<input id="field-${q.id}" class="input-base" type="text" placeholder="${q.placeholder || 'Sua resposta'}" value="${currentVal}" aria-label="${q.label}">`;
   }
 
   return `
-    <div class="slide" data-slide="${i}">
+    <div class="slide" data-slide="${i}" role="region" aria-label="Pergunta ${slide.questionIndex + 1}">
       <div class="module-card">
         <div class="module-number">📝 ${slide.number} · ${slide.questionIndex + 1} de ${slide.totalQuestions}</div>
         <h2 class="module-title">${q.label}</h2>
         ${q.unit ? `<p class="module-subtitle">Responda em ${q.unit}.</p>` : ''}
         ${inputHtml}
-        <div class="field-error" id="erro-q-${q.id}"></div>
+        <div class="field-error" id="erro-q-${q.id}" role="alert"></div>
         <div class="nav-row">
           <button onclick="prevSlide()" class="nav-btn nav-btn-ghost">← Voltar</button>
           <button onclick="confirmQuestion('${q.id}')" class="nav-btn nav-btn-primary">${slide.questionIndex + 1 < slide.totalQuestions ? 'Próxima →' : 'Continuar →'}</button>
@@ -147,12 +133,12 @@ function renderQuestion(slide, i) {
 
 function renderFinal(i) {
   return `
-    <div class="slide" data-slide="${i}">
+    <div class="slide" data-slide="${i}" role="region" aria-label="Finalização">
       <div class="module-card">
         <div class="module-number">✨ Finalizar</div>
         <h2 class="module-title">Quer contar mais alguma coisa?</h2>
         <p class="module-subtitle">Opcional. Conte o que quiser... ou pule esta etapa.</p>
-        <textarea id="field-observacao" class="input-base" style="min-height: 120px; resize: vertical;" placeholder="Ex: tenho uma cirurgia marcada, estou desempregado...">${state.answers.observacao}</textarea>
+        <textarea id="field-observacao" class="input-base" style="min-height: 120px; resize: vertical;" placeholder="Ex: tenho uma cirurgia marcada, estou desempregado..." aria-label="Observações adicionais">${state.answers.observacao}</textarea>
         <div class="nav-row">
           <button onclick="prevSlide()" class="nav-btn nav-btn-ghost">← Voltar</button>
           <button onclick="submitFinal()" class="nav-btn nav-btn-primary">Gerar análise 🚀</button>
@@ -175,13 +161,13 @@ function renderSuccess(i) {
   }
 
   return `
-    <div class="slide" data-slide="${i}">
+    <div class="slide" data-slide="${i}" role="region" aria-label="Resultado">
       <div class="module-card">
-        <div class="success-icon">✓</div>
+        <div class="success-icon" aria-hidden="true">✓</div>
         <div class="module-number" style="margin: 0 auto 1rem; display: flex; width: fit-content;">🎉 Concluído</div>
         <h2 class="module-title" style="text-align: center;">Obrigado, ${state.answers.nome.split(' ')[0]}!</h2>
         <p class="module-subtitle" style="text-align: center;">Sua análise foi enviada com sucesso.</p>
-        <div class="result-card ${cardClass}">
+        <div class="result-card ${cardClass}" role="status">
           <div style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; font-weight: 600; margin-bottom: 0.5rem;">Resultado da triagem</div>
           <div style="font-size: 1.3rem; font-weight: 800; color: ${labelColor}; margin-bottom: 0.8rem;">${label}</div>
           <div style="font-size: 0.95rem; color: #e2e8f0; line-height: 1.6;">${rationale}</div>
@@ -190,7 +176,7 @@ function renderSuccess(i) {
           💡 <strong style="color: #fff;">Importante:</strong> este é um resultado inicial e automático. Não substitui uma análise completa feita por um profissional.
         </div>
         <div style="display: flex; flex-direction: column; gap: 0.8rem; margin-top: 1.5rem;">
-          <a href="#" id="btn-whatsapp" class="nav-btn nav-btn-whatsapp">📱 Enviar resumo no WhatsApp</a>
+          <a href="#" id="btn-whatsapp" class="nav-btn nav-btn-whatsapp" aria-label="Enviar resumo no WhatsApp">📱 Enviar resumo no WhatsApp</a>
           <button onclick="restart()" class="nav-btn nav-btn-ghost" style="width: 100%; justify-content: center;">Fazer nova análise</button>
         </div>
       </div>
@@ -247,8 +233,12 @@ function prevSlide() {
 
 function selectRouter(value, btn) {
   state.answers.routerValue = value;
-  document.querySelectorAll('[data-slide="1"] .option-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelectorAll('[data-slide="1"] .option-btn').forEach(b => {
+    b.classList.remove('selected');
+    b.setAttribute('aria-checked', 'false');
+  });
   btn.classList.add('selected');
+  btn.setAttribute('aria-checked', 'true');
   document.getElementById('btn-router-next').disabled = false;
 }
 
@@ -279,8 +269,12 @@ function confirmRouter() {
 function selectChoice(qId, value, btn) {
   state.answers.questionAnswers[qId] = value;
   const slideIdx = state.currentSlide;
-  document.querySelectorAll(`[data-slide="${slideIdx}"] .option-btn`).forEach(b => b.classList.remove('selected'));
+  document.querySelectorAll(`[data-slide="${slideIdx}"] .option-btn`).forEach(b => {
+    b.classList.remove('selected');
+    b.setAttribute('aria-checked', 'false');
+  });
   btn.classList.add('selected');
+  btn.setAttribute('aria-checked', 'true');
 }
 
 function confirmQuestion(qId) {
@@ -322,19 +316,18 @@ async function submitFinal() {
   }
 
   try {
-    const res = await fetch('/api/leads', {
+    const res = await fetch('/api/triagem', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        nome: state.answers.nome,
-        telefone: state.answers.telefone,
-        routerValue: state.answers.routerValue,
-        answers: state.answers.questionAnswers,
-        observacao: state.answers.observacao
+        name: state.answers.nome,
+        phone: state.answers.telefone,
+        benefit_type: state.answers.benefitKey,
+        answers: state.answers.questionAnswers
       })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Erro ao salvar');
+    if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
 
     state.answers.classification = data.classification;
     state.answers.classificationLabel = data.classification_label;
@@ -342,7 +335,7 @@ async function submitFinal() {
 
     setTimeout(() => {
       const btn = document.getElementById('btn-whatsapp');
-      if (btn) btn.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(data.resumo)}`;
+      if (btn && data.whatsapp_link) btn.href = data.whatsapp_link;
     }, 100);
 
     goToSlide(state.slides.length - 1);
@@ -350,7 +343,7 @@ async function submitFinal() {
     if (currentCard) {
       currentCard.innerHTML = `
         <div style="text-align: center; padding: 3rem 1rem;">
-          <div style="font-size: 3rem; margin-bottom: 1rem;"></div>
+          <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
           <p style="color: #f87171; font-size: 1.1rem; margin-bottom: 1.5rem;">Não conseguimos enviar sua análise.</p>
           <button onclick="location.reload()" class="nav-btn nav-btn-primary">Tentar novamente</button>
         </div>
@@ -375,8 +368,89 @@ function renderDots() {
   dots.innerHTML = state.slides.map((_, i) => `<button class="slide-dot" onclick="goToSlide(${i})" aria-label="Ir para etapa ${i+1}"></button>`).join('');
 }
 
+// ============================================================
+// GERENCIAMENTO DE LOGIN E GOOGLE AUTH
+// ============================================================
+
+function initGoogleAuth() {
+  if (typeof google === 'undefined') return;
+  google.accounts.id.initialize({
+    client_id: "SEU_CLIENT_ID_GOOGLE.apps.googleusercontent.com",
+    callback: handleGoogleCredentialResponse,
+    auto_select: false,
+    cancel_on_tap_outside: true
+  });
+}
+
+async function handleGoogleCredentialResponse(response) {
+  try {
+    const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'google', credential: response.credential })
+    });
+    if (!res.ok) throw new Error('Credenciais inválidas');
+    const data = await res.json();
+    abrirPainelAdmin(data.role, data.token);
+    fecharLoginModal();
+  } catch (e) { alert('Erro ao autenticar com Google: ' + e.message); }
+}
+
+async function autenticarUsuario() {
+  const u = document.getElementById('user-login').value.trim();
+  const p = document.getElementById('pass-login').value.trim();
+  if (!u || !p) { alert('Preencha usuário e senha.'); return; }
+
+  try {
+    const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'password', username: u, password: p })
+    });
+    if (!res.ok) throw new Error('Usuário ou senha incorretos!');
+    const data = await res.json();
+    abrirPainelAdmin(data.role, data.token);
+    fecharLoginModal();
+  } catch (e) { alert(e.message); }
+}
+
+function abrirPainelAdmin(role, token) {
+  localStorage.setItem('admin_token', token);
+  localStorage.setItem('admin_role', role);
+  document.getElementById('modal-painel')?.classList.remove('hidden');
+}
+
+function abrirLoginModal() { 
+  document.getElementById('modal-login').classList.remove('hidden'); 
+  if (typeof google !== 'undefined') {
+    google.accounts.id.renderButton(
+      document.getElementById("g_id_signin"), 
+      { theme: "outline", size: "large", width: "100%" }
+    );
+  }
+}
+
+function fecharLoginModal() { document.getElementById('modal-login').classList.add('hidden'); }
+function fecharPainel() { 
+  document.getElementById('modal-painel')?.classList.add('hidden'); 
+  localStorage.removeItem('admin_token');
+  localStorage.removeItem('admin_role');
+}
+
+// Interceptor Automático para Requisições Admin
+const originalFetch = window.fetch;
+window.fetch = async (...args) => {
+  const [url, options = {}] = args;
+  const token = localStorage.getItem('admin_token');
+  if (url.includes('/api/admin/') && token) {
+    options.headers = { ...options.headers, 'Authorization': `Bearer ${token}` };
+  }
+  return originalFetch(url, options);
+};
+
 document.addEventListener('DOMContentLoaded', () => {
   loadConfig();
+  initGoogleAuth();
 
   document.addEventListener('input', (e) => {
     if (e.target.id === 'field-telefone') {
@@ -394,3 +468,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'ArrowLeft') prevSlide();
   });
 });
+
+function mascaraTelefone(valor) {
+  const d = valor.replace(/\D/g, '').slice(0, 11);
+  if (d.length <= 2) return d.length ? `(${d}` : '';
+  if (d.length <= 7) return `(${d.slice(0,2)}) ${d.slice(2)}`;
+  return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7,11)}`;
+}
