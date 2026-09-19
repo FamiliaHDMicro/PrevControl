@@ -1,65 +1,28 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PrevConsulta — Triagem Previdenciária e Trabalhista</title>
-    <meta name="description" content="Descubra seus direitos previdenciários e trabalhistas. Análise gratuita, rápida e sem juridiquês.">
-    <link rel="stylesheet" href="/style.css">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PrevConsulta — INSS e Trabalho</title>
+<meta name="description" content="Triagem inicial simples para problemas de INSS e direitos trabalhistas, sem juridiquês.">
+<link rel="stylesheet" href="/style.css">
 </head>
 <body>
-    <div class="progress-bar" id="progressBar"></div>
-
-    <!-- Barra de Utilidade Pública -->
-    <div class="utility-bar">
-        <div class="container">
-            <span class="bar-label">🏛️ Serviços Úteis:</span>
-            <a href="https://meu.inss.gov.br" target="_blank" rel="noopener" class="util-link">Meu INSS</a>
-            <a href="https://www.gov.br/pt-br/servicos/cartao-de-trabalho-digital" target="_blank" rel="noopener" class="util-link">Carteira Digital</a>
-            <a href="https://www.sebrae.com.br/sites/PortalSebrae/cursosonline" target="_blank" rel="noopener" class="util-link">Cursos Grátis SEBRAE</a>
-            <a href="https://www.defensoria.sp.def.br/" target="_blank" rel="noopener" class="util-link">Defensoria Pública</a>
-        </div>
-    </div>
-
-    <header class="top-header">
-        <div class="logo">
-            <div class="logo-icon" aria-hidden="true">P</div>
-            <span class="logo-text">PrevConsulta</span>
-        </div>
-        <div class="header-badge">Triagem gratuita · 100% online</div>
-        <button onclick="abrirLoginModal()" class="admin-link" aria-label="Acesso restrito para atendentes">ADM</button>
-    </header>
-
-    <main class="slide-viewport" role="main" aria-label="Formulário de triagem passo a passo">
-        <div class="slide-track" id="slideTrack">
-            <div class="slide" aria-live="polite">Carregando sistema...</div>
-        </div>
-    </main>
-
-    <nav class="slide-dots" id="slideDots" aria-label="Navegação entre etapas"></nav>
-
-    <footer class="footer-note">
-        <div class="footer-content">
-            <span>💡 Análise inicial automática. Não substitui consulta com advogado.</span>
-        </div>
-    </footer>
-
-    <!-- Modal de Login -->
-    <div id="modal-login" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="login-title">
-        <div class="modal-content">
-            <h3 id="login-title">Acesso ao Painel</h3>
-            <input type="text" id="user-login" placeholder="Usuário" aria-label="Nome de usuário">
-            <input type="password" id="pass-login" placeholder="Senha" aria-label="Senha de acesso">
-            <div id="g_id_signin" style="margin-top: 1rem;"></div>
-            <div style="text-align:center; color:#94a3b8; font-size:0.75rem; margin: 0.5rem 0;">ou</div>
-            <div class="modal-actions">
-                <button onclick="autenticarUsuario()" class="btn-primary">Entrar</button>
-                <button onclick="fecharLoginModal()" class="btn-ghost">Cancelar</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="/app.js"></script>
-</body>
-</html>
+<div id="progressBar" class="progress-bar"></div>
+<header class="top-header"><div class="container header-inner">
+  <div class="brand"><span class="brand-icon">P</span><div><strong>PrevConsulta</strong><small>INSS e Trabalho</small></div></div>
+  <button class="admin-link" onclick="abrirLoginModal()">ADM</button>
+</div></header>
+<div class="utility-bar"><div class="container utility-inner">
+  <span>Serviços oficiais:</span>
+  <a href="https://meu.inss.gov.br/" target="_blank" rel="noopener">Meu INSS</a>
+  <a href="https://www.gov.br/pt-br/servicos/obter-a-carteira-de-trabalho" target="_blank" rel="noopener">Carteira de Trabalho Digital</a>
+  <a href="https://www.gov.br/pt-br/servicos/solicitar-o-seguro-desemprego" target="_blank" rel="noopener">Seguro-Desemprego</a>
+  <a href="https://www.gov.br/" target="_blank" rel="noopener">Gov.br</a>
+</div></div>
+<main class="slide-viewport"><div id="slideTrack" class="slide-track"><div class="slide"><div class="card">Carregando...</div></div></div></main>
+<nav id="slideDots" class="slide-dots" aria-label="Etapas"></nav>
+<footer><div class="container">Triagem inicial. Não decide direito e não substitui análise profissional.</div></footer>
+<div id="modal-login" class="modal hidden"><div class="modal-box"><button class="close" onclick="fecharLoginModal()">×</button><h2>Acesso da equipe</h2><p>As senhas ficam nas Variables/Secrets do Cloudflare.</p><input id="user-login" placeholder="Usuário" autocomplete="username"><input id="pass-login" type="password" placeholder="Senha" autocomplete="current-password"><div id="g_id_signin"></div><div class="or">ou</div><button class="primary" onclick="autenticarUsuario()">Entrar</button></div></div>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="/app.js"></script>
+</body></html>
