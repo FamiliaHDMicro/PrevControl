@@ -1,28 +1,1070 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PrevConsulta — INSS e Trabalho</title>
-<meta name="description" content="Triagem inicial simples para problemas de INSS e direitos trabalhistas, sem juridiquês.">
-<link rel="stylesheet" href="/style.css">
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <meta
+    name="description"
+    content="PrevControl — orientação inicial sobre Previdência, INSS, direitos trabalhistas e serviços empresariais."
+  >
+
+  <title>PrevControl — Previdência, Trabalho e Serviços</title>
+
+  <link rel="stylesheet" href="/estilo.css">
+
+  <!-- Google Identity -->
+  <script
+    src="https://accounts.google.com/gsi/client"
+    async
+    defer
+  ></script>
 </head>
+
 <body>
-<div id="progressBar" class="progress-bar"></div>
-<header class="top-header"><div class="container header-inner">
-  <div class="brand"><span class="brand-icon">P</span><div><strong>PrevConsulta</strong><small>INSS e Trabalho</small></div></div>
-  <button class="admin-link" onclick="abrirLoginModal()">ADM</button>
-</div></header>
-<div class="utility-bar"><div class="container utility-inner">
-  <span>Serviços oficiais:</span>
-  <a href="https://meu.inss.gov.br/" target="_blank" rel="noopener">Meu INSS</a>
-  <a href="https://www.gov.br/pt-br/servicos/obter-a-carteira-de-trabalho" target="_blank" rel="noopener">Carteira de Trabalho Digital</a>
-  <a href="https://www.gov.br/pt-br/servicos/solicitar-o-seguro-desemprego" target="_blank" rel="noopener">Seguro-Desemprego</a>
-  <a href="https://www.gov.br/" target="_blank" rel="noopener">Gov.br</a>
-</div></div>
-<main class="slide-viewport"><div id="slideTrack" class="slide-track"><div class="slide"><div class="card">Carregando...</div></div></div></main>
-<nav id="slideDots" class="slide-dots" aria-label="Etapas"></nav>
-<footer><div class="container">Triagem inicial. Não decide direito e não substitui análise profissional.</div></footer>
-<div id="modal-login" class="modal hidden"><div class="modal-box"><button class="close" onclick="fecharLoginModal()">×</button><h2>Acesso da equipe</h2><p>As senhas ficam nas Variables/Secrets do Cloudflare.</p><input id="user-login" placeholder="Usuário" autocomplete="username"><input id="pass-login" type="password" placeholder="Senha" autocomplete="current-password"><div id="g_id_signin"></div><div class="or">ou</div><button class="primary" onclick="autenticarUsuario()">Entrar</button></div></div>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="/app.js"></script>
-</body></html>
+
+  <!-- =========================================================
+       CABEÇALHO
+  ========================================================== -->
+
+  <header class="site-header">
+
+    <div class="header-inner">
+
+      <a href="#inicio" class="brand" aria-label="PrevControl - início">
+        <span class="brand-mark">PC</span>
+
+        <span class="brand-text">
+          <strong>PrevControl</strong>
+          <small>Informação que ajuda a decidir</small>
+        </span>
+      </a>
+
+      <nav class="main-nav" aria-label="Navegação principal">
+
+        <a href="#previdencia">INSS</a>
+
+        <a href="#trabalhista">Trabalhista</a>
+
+        <a href="#empresarial">Empresarial</a>
+
+        <a href="#como-funciona">Como funciona</a>
+
+        <a href="#triagem" class="nav-highlight">
+          Fazer triagem
+        </a>
+
+      </nav>
+
+    </div>
+
+  </header>
+
+
+  <main>
+
+    <!-- =======================================================
+         BANNER PRINCIPAL
+    ======================================================== -->
+
+    <section id="inicio" class="hero">
+
+      <div class="hero-background"></div>
+
+      <div class="container hero-content">
+
+        <div class="hero-badge">
+          PREVCONTROL
+        </div>
+
+        <h1>
+          Você tem uma dúvida sobre
+          <span>INSS ou trabalho?</span>
+        </h1>
+
+        <p class="hero-text">
+          Conte o que aconteceu. A gente organiza as informações,
+          faz uma primeira triagem e mostra quais documentos podem
+          ser importantes para uma análise mais completa.
+        </p>
+
+        <div class="hero-actions">
+
+          <a
+            href="#triagem"
+            class="btn btn-primary btn-large"
+          >
+            Quero fazer uma triagem
+            <span>→</span>
+          </a>
+
+          <a
+            href="#como-funciona"
+            class="btn btn-secondary btn-large"
+          >
+            Entender primeiro
+          </a>
+
+        </div>
+
+        <div class="hero-note">
+          <span>✓</span>
+          Primeira análise automatizada e informativa.
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =======================================================
+         INTRODUÇÃO
+    ======================================================== -->
+
+    <section class="intro-section">
+
+      <div class="container intro-grid">
+
+        <div>
+
+          <span class="section-kicker">
+            SEM COMPLICAÇÃO
+          </span>
+
+          <h2>
+            Antes de procurar uma resposta,
+            precisamos entender o que aconteceu.
+          </h2>
+
+        </div>
+
+        <div>
+
+          <p>
+            Muitas vezes a pessoa sabe que existe um problema,
+            mas não sabe por onde começar.
+          </p>
+
+          <p>
+            O PrevControl ajuda a colocar as informações em ordem
+            para você entender qual caminho merece atenção.
+          </p>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =======================================================
+         PREVIDÊNCIA / INSS
+    ======================================================== -->
+
+    <section
+      id="previdencia"
+      class="sector-section sector-previdencia"
+    >
+
+      <div class="container">
+
+        <div class="sector-heading">
+
+          <div>
+
+            <span class="sector-number">
+              01
+            </span>
+
+            <span class="section-kicker">
+              PREVIDÊNCIA
+            </span>
+
+            <h2>
+              INSS e aposentadoria
+            </h2>
+
+          </div>
+
+          <p>
+            Para quem quer entender seu tempo, seu benefício
+            ou o que pode estar faltando na documentação.
+          </p>
+
+        </div>
+
+
+        <div class="interest-grid">
+
+          <article class="interest-card">
+
+            <div class="interest-icon">
+              ⏳
+            </div>
+
+            <h3>
+              Aposentadoria
+            </h3>
+
+            <p>
+              Quer saber se já está perto de se aposentar
+              ou entender quais informações precisam ser conferidas?
+            </p>
+
+            <a href="#triagem">
+              Quero verificar →
+            </a>
+
+          </article>
+
+
+          <article class="interest-card">
+
+            <div class="interest-icon">
+              🧾
+            </div>
+
+            <h3>
+              BPC / LOAS
+            </h3>
+
+            <p>
+              Tem 65 anos ou mais ou existe uma situação de
+              deficiência na família? Podemos fazer uma primeira triagem.
+            </p>
+
+            <a href="#triagem">
+              Quero verificar →
+            </a>
+
+          </article>
+
+
+          <article class="interest-card">
+
+            <div class="interest-icon">
+              📋
+            </div>
+
+            <h3>
+              Acerto de CNIS
+            </h3>
+
+            <p>
+              Apareceu tempo errado, vínculo duplicado ou alguma
+              informação que não bate no seu CNIS?
+            </p>
+
+            <a href="#triagem">
+              Quero verificar →
+            </a>
+
+          </article>
+
+
+          <article class="interest-card">
+
+            <div class="interest-icon">
+              🗂️
+            </div>
+
+            <h3>
+              Planejamento
+            </h3>
+
+            <p>
+              Ainda falta tempo para a aposentadoria?
+              Organizar a situação antes pode evitar problemas depois.
+            </p>
+
+            <a href="#triagem">
+              Quero conversar →
+            </a>
+
+          </article>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =======================================================
+         TRABALHISTA
+    ======================================================== -->
+
+    <section
+      id="trabalhista"
+      class="sector-section sector-trabalhista"
+    >
+
+      <div class="container">
+
+        <div class="sector-heading">
+
+          <div>
+
+            <span class="sector-number">
+              02
+            </span>
+
+            <span class="section-kicker">
+              TRABALHO
+            </span>
+
+            <h2>
+              Direitos trabalhistas
+            </h2>
+
+          </div>
+
+          <p>
+            Saiu da empresa, está pensando em sair ou percebeu
+            alguma coisa estranha no pagamento?
+          </p>
+
+        </div>
+
+
+        <div class="interest-grid">
+
+          <article class="interest-card">
+
+            <div class="interest-icon">
+              📄
+            </div>
+
+            <h3>
+              Rescisão
+            </h3>
+
+            <p>
+              Quer entender se os valores da saída da empresa
+              precisam ser conferidos?
+            </p>
+
+            <a href="#triagem">
+              Conferir situação →
+            </a>
+
+          </article>
+
+
+          <article class="interest-card">
+
+            <div class="interest-icon">
+              💰
+            </div>
+
+            <h3>
+              FGTS
+            </h3>
+
+            <p>
+              Não sabe se recebeu tudo ou não entende
+              o que aparece no seu extrato?
+            </p>
+
+            <a href="#triagem">
+              Verificar →
+            </a>
+
+          </article>
+
+
+          <article class="interest-card">
+
+            <div class="interest-icon">
+              📆
+            </div>
+
+            <h3>
+              Aviso-prévio
+            </h3>
+
+            <p>
+              Trabalhou, recebeu indenização ou teve algum
+              desconto? Conte o que aconteceu.
+            </p>
+
+            <a href="#triagem">
+              Quero verificar →
+            </a>
+
+          </article>
+
+
+          <article class="interest-card">
+
+            <div class="interest-icon">
+              🏢
+            </div>
+
+            <h3>
+              Direitos da categoria
+            </h3>
+
+            <p>
+              Algumas categorias possuem regras e valores
+              próprios. Os documentos ajudam a conferir.
+            </p>
+
+            <a href="#triagem">
+              Quero verificar →
+            </a>
+
+          </article>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =======================================================
+         EMPRESARIAL
+    ======================================================== -->
+
+    <section
+      id="empresarial"
+      class="sector-section sector-empresarial"
+    >
+
+      <div class="container">
+
+        <div class="sector-heading">
+
+          <div>
+
+            <span class="sector-number">
+              03
+            </span>
+
+            <span class="section-kicker">
+              EMPRESA
+            </span>
+
+            <h2>
+              Serviços empresariais
+            </h2>
+
+          </div>
+
+          <p>
+            Para quem tem empresa, MEI ou precisa colocar
+            a parte documental em ordem.
+          </p>
+
+        </div>
+
+
+        <div class="interest-grid">
+
+          <article class="interest-card">
+
+            <div class="interest-icon">
+              🧑‍💼
+            </div>
+
+            <h3>
+              MEI e empresa
+            </h3>
+
+            <p>
+              Precisa abrir, organizar ou entender melhor
+              a situação da sua empresa?
+            </p>
+
+            <a href="#triagem">
+              Ver opções →
+            </a>
+
+          </article>
+
+
+          <article class="interest-card">
+
+            <div class="interest-icon">
+              🏷️
+            </div>
+
+            <h3>
+              CNPJ
+            </h3>
+
+            <p>
+              Seu CNPJ está parado ou precisa ser regularizado?
+              Conte o que está acontecendo.
+            </p>
+
+            <a href="#triagem">
+              Ver opções →
+            </a>
+
+          </article>
+
+
+          <article class="interest-card">
+
+            <div class="interest-icon">
+              👥
+            </div>
+
+            <h3>
+              Departamento pessoal
+            </h3>
+
+            <p>
+              Questões relacionadas a funcionários,
+              folha e documentação.
+            </p>
+
+            <a href="#triagem">
+              Ver opções →
+            </a>
+
+          </article>
+
+
+          <article class="interest-card">
+
+            <div class="interest-icon">
+              🗃️
+            </div>
+
+            <h3>
+              Documentação
+            </h3>
+
+            <p>
+              Precisa entender quais documentos são necessários
+              para resolver uma situação?
+            </p>
+
+            <a href="#triagem">
+              Ver opções →
+            </a>
+
+          </article>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =======================================================
+         COMO FUNCIONA
+    ======================================================== -->
+
+    <section
+      id="como-funciona"
+      class="how-section"
+    >
+
+      <div class="container">
+
+        <div class="center-heading">
+
+          <span class="section-kicker">
+            COMO FUNCIONA
+          </span>
+
+          <h2>
+            É simples.
+          </h2>
+
+          <p>
+            Você conta o que aconteceu.
+            O sistema organiza as informações.
+            Depois, os documentos ajudam a confirmar a situação.
+          </p>
+
+        </div>
+
+
+        <div class="steps-grid">
+
+          <article class="step-card">
+
+            <span class="step-number">
+              1
+            </span>
+
+            <h3>
+              Conte sua situação
+            </h3>
+
+            <p>
+              Responda perguntas simples sobre o que aconteceu.
+            </p>
+
+          </article>
+
+
+          <article class="step-card">
+
+            <span class="step-number">
+              2
+            </span>
+
+            <h3>
+              Receba uma primeira orientação
+            </h3>
+
+            <p>
+              O sistema organiza as respostas e mostra
+              o que merece atenção.
+            </p>
+
+          </article>
+
+
+          <article class="step-card">
+
+            <span class="step-number">
+              3
+            </span>
+
+            <h3>
+              Separe os documentos
+            </h3>
+
+            <p>
+              Documentos ajudam a confirmar aquilo que
+              apareceu na primeira análise.
+            </p>
+
+          </article>
+
+
+          <article class="step-card">
+
+            <span class="step-number">
+              4
+            </span>
+
+            <h3>
+              Procure a análise adequada
+            </h3>
+
+            <p>
+              Quando o caso precisar de análise profissional,
+              você já chega com as informações mais organizadas.
+            </p>
+
+          </article>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =======================================================
+         TRIAGEM
+    ======================================================== -->
+
+    <section
+      id="triagem"
+      class="triagem-section"
+    >
+
+      <div class="container">
+
+        <div class="triagem-header">
+
+          <span class="section-kicker">
+            PRIMEIRA ANÁLISE
+          </span>
+
+          <h2>
+            Vamos começar?
+          </h2>
+
+          <p>
+            A triagem é rápida. Você responde algumas perguntas
+            e recebe uma indicação inicial sobre sua situação.
+          </p>
+
+        </div>
+
+
+        <div class="triagem-wrapper">
+
+          <!-- Barra de progresso -->
+
+          <div class="progress-container">
+
+            <div
+              id="progressBar"
+              class="progress-bar"
+              style="width: 0%;"
+            ></div>
+
+          </div>
+
+
+          <!-- Pontos -->
+
+          <div
+            id="slideDots"
+            class="slide-dots"
+            aria-label="Progresso da triagem"
+          ></div>
+
+
+          <!-- Área utilizada pelo app.js -->
+
+          <div
+            id="slideViewport"
+            class="slide-viewport"
+          >
+
+            <div
+              id="slideTrack"
+              class="slide-track"
+            ></div>
+
+          </div>
+
+        </div>
+
+
+        <div class="triagem-disclaimer">
+
+          <strong>
+            Importante
+          </strong>
+
+          <p>
+            O resultado apresentado aqui é uma triagem inicial.
+            Ele não substitui a conferência dos documentos nem
+            uma análise feita por profissional habilitado.
+          </p>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =======================================================
+         CONFIANÇA / TRANSPARÊNCIA
+    ======================================================== -->
+
+    <section class="trust-section">
+
+      <div class="container trust-grid">
+
+        <div class="trust-box">
+
+          <span class="trust-icon">
+            🔎
+          </span>
+
+          <div>
+
+            <h3>
+              Informação clara
+            </h3>
+
+            <p>
+              A proposta é explicar a situação de maneira
+              que qualquer pessoa consiga entender.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <div class="trust-box">
+
+          <span class="trust-icon">
+            📑
+          </span>
+
+          <div>
+
+            <h3>
+              Documento importa
+            </h3>
+
+            <p>
+              Uma resposta inicial não substitui documentos.
+              Eles são fundamentais para confirmar cada caso.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <div class="trust-box">
+
+          <span class="trust-icon">
+            🔐
+          </span>
+
+          <div>
+
+            <h3>
+              Segurança
+            </h3>
+
+            <p>
+              Senhas e credenciais administrativas não ficam
+              expostas nesta página.
+            </p>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <!-- =========================================================
+       RODAPÉ
+  ========================================================== -->
+
+  <footer class="site-footer">
+
+    <div class="container footer-main">
+
+      <div class="footer-brand">
+
+        <a href="#inicio" class="brand footer-brand-link">
+
+          <span class="brand-mark">
+            PC
+          </span>
+
+          <span class="brand-text">
+
+            <strong>
+              PrevControl
+            </strong>
+
+            <small>
+              Informação que ajuda a decidir
+            </small>
+
+          </span>
+
+        </a>
+
+        <p>
+          Uma ferramenta de orientação inicial para ajudar
+          você a organizar sua situação antes de uma análise completa.
+        </p>
+
+      </div>
+
+
+      <div class="footer-column">
+
+        <h3>
+          Previdência
+        </h3>
+
+        <a href="#previdencia">
+          Aposentadoria
+        </a>
+
+        <a href="#previdencia">
+          BPC / LOAS
+        </a>
+
+        <a href="#previdencia">
+          Acerto de CNIS
+        </a>
+
+        <a href="#previdencia">
+          Planejamento
+        </a>
+
+      </div>
+
+
+      <div class="footer-column">
+
+        <h3>
+          Trabalhista
+        </h3>
+
+        <a href="#trabalhista">
+          Rescisão
+        </a>
+
+        <a href="#trabalhista">
+          FGTS
+        </a>
+
+        <a href="#trabalhista">
+          Aviso-prévio
+        </a>
+
+        <a href="#trabalhista">
+          Direitos da categoria
+        </a>
+
+      </div>
+
+
+      <div class="footer-column">
+
+        <h3>
+          PrevControl
+        </h3>
+
+        <a href="#como-funciona">
+          Como funciona
+        </a>
+
+        <a href="#triagem">
+          Fazer triagem
+        </a>
+
+        <a href="#inicio">
+          Início
+        </a>
+
+        <a href="#inicio">
+          Privacidade
+        </a>
+
+      </div>
+
+    </div>
+
+
+    <div class="footer-bottom">
+
+      <div class="container footer-bottom-inner">
+
+        <span>
+          © PrevControl — Todos os direitos reservados.
+        </span>
+
+        <span>
+          Informação inicial não substitui análise profissional.
+        </span>
+
+      </div>
+
+    </div>
+
+  </footer>
+
+
+  <!-- =========================================================
+       MODAL DE LOGIN ADMINISTRATIVO
+       Mantido para compatibilidade com o app.js
+  ========================================================== -->
+
+  <div
+    id="modal-login"
+    class="login-modal hidden"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="login-title"
+  >
+
+    <div class="login-box">
+
+      <button
+        type="button"
+        class="login-close"
+        onclick="fecharLoginModal()"
+        aria-label="Fechar"
+      >
+        ×
+      </button>
+
+      <div class="login-icon">
+        🔐
+      </div>
+
+      <h2 id="login-title">
+        Acesso administrativo
+      </h2>
+
+      <p>
+        Área restrita para usuários autorizados.
+      </p>
+
+      <div class="login-fields">
+
+        <label for="user-login">
+          Usuário
+        </label>
+
+        <input
+          id="user-login"
+          type="text"
+          autocomplete="username"
+          placeholder="Usuário"
+        >
+
+
+        <label for="pass-login">
+          Senha
+        </label>
+
+        <input
+          id="pass-login"
+          type="password"
+          autocomplete="current-password"
+          placeholder="Senha"
+        >
+
+
+        <button
+          type="button"
+          class="btn btn-primary"
+          onclick="autenticarUsuario()"
+        >
+          Entrar
+        </button>
+
+      </div>
+
+
+      <div class="login-divider">
+        <span>ou</span>
+      </div>
+
+
+      <div
+        id="g_id_signin"
+        class="google-login"
+      ></div>
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================================================
+       JAVASCRIPT DO PREVCONTROL
+  ========================================================== -->
+
+  <script src="/app.js"></script>
+
+</body>
+</html>
