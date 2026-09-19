@@ -1,37 +1,49 @@
-// rules.js — Motor de triagem determinística (Custo Zero)
-// Adaptado para linguagem cotidiana e público de baixa instrução
+// rules.js — Motor de triagem determinística (Estilo Cleiton)
+// Foco: Convite à análise documental + Linguagem acessível + Auditoria completa
 
 const BENEFITS = {
   aposentadoria_idade: {
     label: "Aposentadoria por idade",
     questions: [
-      { id: "age", label: "Qual a sua idade?", type: "number", unit: "anos", required: true },
+      { id: "age", label: "Qual sua idade?", type: "number", unit: "anos", required: true },
       { id: "contrib_years", label: "Quantos anos você já pagou INSS (carteira assinada, carnê ou MEI)?", type: "number", unit: "anos", required: true },
-      { id: "gender", label: "Você é homem ou mulher?", type: "choice", options: ["homem", "mulher"], required: true }
+      { id: "gender", label: "Você é homem ou mulher?", type: "choice", options: ["Homem", "Mulher"], required: true }
     ],
     evaluate(answers) {
       const age = Number(answers.age);
-      const contrib = Number(answers.contrib_years) || 0;
-      const isMale = answers.gender === "homem";
+      const contrib = Number(answers.contrib_years);
+      const isMale = answers.gender === "Homem";
       
-      if (!age || !contrib) return { class: "precisa_avaliacao", rationale: "Precisamos da sua idade e tempo de contribuição para avaliar." };
+      if (!age || !contrib) return { class: "precisa_avaliacao", rationale: "Precisamos desses dados para iniciar a análise." };
       
       const minAge = isMale ? 65 : 62;
       const minContrib = 15;
       
-      if (age >= minAge && contrib >= minContrib) 
-        return { class: "provavel_direito", rationale: `Ótima notícia! Você tem ${minAge} anos e ${contrib} anos de contribuição.` };
-        
-      if (age >= minAge - 2 && contrib >= minContrib)
-        return { class: "precisa_avaliacao", rationale: "Você está pertinho da idade. Vale a pena analisar as regras de transição." };
-        
-      return { class: "sem_direito", rationale: `Ainda faltam ${Math.max(minAge - age, 0)} anos de idade ou mais tempo de contribuição.` };
+      if (age >= minAge && contrib >= minContrib) {
+        return { 
+          class: "provavel_direito", 
+          rationale: `Ótimo sinal! Você atende aos requisitos básicos (${minAge} anos + ${minContrib} anos). Mas atenção: as regras de transição podem mudar seu valor ou data. Precisamos analisar seu CNIS para confirmar.` 
+        };
+      }
+      
+      if (age >= minAge - 3 && contrib >= minContrib) {
+        return { 
+          class: "precisa_avaliacao", 
+          rationale: `Você está muito perto da idade mínima. Com as novas regras, pode haver uma janela de oportunidade agora. Traga seus documentos para verificarmos se vale a pena esperar ou entrar com pedido antecipado.` 
+        };
+      }
+      
+      return { 
+        class: "precisa_avaliacao", 
+        rationale: `Ainda faltam alguns anos, mas podemos planejar sua aposentadoria hoje para garantir o melhor benefício futuro. Agende uma avaliação de planejamento.` 
+      };
     }
   },
+  
   bpc_loas: {
     label: "BPC / LOAS (Benefício Assistencial)",
     questions: [
-      { id: "age", label: "Qual a sua idade?", type: "number", unit: "anos", required: true },
+      { id: "age", label: "Qual sua idade?", type: "number", unit: "anos", required: true },
       { id: "incapacity", label: "Você tem alguma deficiência que dificulta sua vida e trabalho?", type: "choice", options: ["sim", "nao"], required: true },
       { id: "family_members", label: "Quantas pessoas moram na sua casa (incluindo você)?", type: "number", unit: "pessoas", required: true },
       { id: "total_income", label: "Quanto dinheiro entra na casa por mês (soma de todos)?", type: "text", placeholder: "Ex: R$ 800,00", required: true }
@@ -46,102 +58,89 @@ const BENEFITS = {
       const limit = 353; 
 
       if ((age >= 65 || hasDef) && perCapita <= limit)
-        return { class: "provavel_direito", rationale: "Sua renda por pessoa está dentro do limite para BPC/LOAS." };
+        return { class: "provavel_direito", rationale: "Sua renda por pessoa está dentro do limite para BPC/LOAS. Precisamos validar isso com documentos oficiais." };
         
       if ((age >= 65 || hasDef) && perCapita > limit)
-        return { class: "precisa_avaliacao", rationale: "Renda acima do limite padrão, mas existem exceções. Vamos analisar com calma." };
+        return { class: "precisa_avaliacao", rationale: "Renda acima do limite padrão, mas existem exceções legais. Vamos analisar com calma seus comprovantes." };
         
       if (age < 65 && !hasDef)
-        return { class: "sem_direito", rationale: "O BPC exige 65+ ou deficiência. Mas podemos te orientar sobre outros benefícios." };
+        return { class: "sem_direito", rationale: "O BPC exige 65+ ou deficiência. Mas podemos te orientar sobre outros benefícios ou assistência social." };
         
-      return { class: "precisa_avaliacao", rationale: "Situação precisa de análise detalhada." };
+      return { class: "precisa_avaliacao", rationale: "Situação precisa de análise detalhada dos comprovantes de residência e renda." };
     }
   },
-  auxilio_doenca: {
-    label: "Auxílio-doença / Incapacidade",
-    questions: [
-      { id: "contrib_months", label: "Quantos meses você já pagou INSS?", type: "number", unit: "meses", required: true },
-      { id: "incapacity", label: "Você está impossibilitado(a) de trabalhar por motivo de saúde?", type: "choice", options: ["sim", "nao"], required: true },
-      { id: "has_medical_report", label: "Você tem laudo médico ou atestado?", type: "choice", options: ["sim", "nao"], required: true }
-    ],
-    evaluate(answers) {
-      const cm = Number(answers.contrib_months);
-      if (answers.incapacity !== "sim") return { class: "sem_direito", rationale: "O auxílio-doença exige que a pessoa esteja impossibilitada de trabalhar." };
-      if (cm >= 12 && answers.has_medical_report === "sim")
-        return { class: "provavel_direito", rationale: "Você tem a carência necessária (12 meses), está incapacitado(a) e tem laudo médico." };
-      if (cm >= 12)
-        return { class: "precisa_avaliacao", rationale: "Você tem a carência, mas vai precisar de laudo médico para a perícia." };
-      return { class: "precisa_avaliacao", rationale: `Faltam ${12 - cm} meses de carência (salvo se for doença do trabalho ou acidente).` };
-    }
-  },
-  pensao_morte: {
-    label: "Pensão por morte",
-    questions: [
-      { id: "relationship", label: "Qual seu parentesco com a pessoa falecida?", type: "choice", options: ["conjuge", "filho_menor", "filho_maior", "pais", "irmaos"], required: true },
-      { id: "deceased_contributed", label: "A pessoa falecida contribuía para o INSS?", type: "choice", options: ["sim", "nao", "nao_sei"], required: true }
-    ],
-    evaluate(answers) {
-      if (answers.deceased_contributed === "nao")
-        return { class: "sem_direito", rationale: "A pensão por morte exige que a pessoa falecida fosse segurada do INSS." };
-      if (["conjuge", "filho_menor", "pais", "irmaos"].includes(answers.relationship))
-        return { class: "provavel_direito", rationale: "Como dependente de segurado do INSS, você provavelmente tem direito à pensão por morte." };
-      if (answers.relationship === "filho_maior")
-        return { class: "precisa_avaliacao", rationale: "Filho maior de 21 anos só tem direito em casos específicos. Vamos analisar." };
-      return { class: "precisa_avaliacao", rationale: "Situação precisa de análise detalhada." };
-    }
-  },
-  salario_maternidade: {
-    label: "Salário-maternidade",
-    questions: [
-      { id: "contrib_months", label: "Quantos meses você já pagou INSS?", type: "number", unit: "meses", required: true },
-      { id: "situation", label: "Qual a sua situação?", type: "choice", options: ["gravida", "ja_nasceu", "adocao"], required: true }
-    ],
-    evaluate(answers) {
-      const cm = Number(answers.contrib_months);
-      if (cm >= 10) return { class: "provavel_direito", rationale: "Parabéns! Você tem a carência de 10 meses necessária." };
-      if (cm > 0) return { class: "precisa_avaliacao", rationale: `Faltam ${10 - cm} meses de carência. Mas fique tranquilo(a), podemos te orientar.` };
-      return { class: "sem_direito", rationale: "Sem contribuições registradas. Mas existem situações especiais." };
-    }
-  },
+
   trabalhista: {
-    label: "Direitos trabalhistas",
+    label: "Rescisão e direitos trabalhistas",
     questions: [
-      { id: "situation", label: "Qual a sua situação?", type: "choice", options: ["demissao_sem_justa", "demissao_justa", "rescisao_indireta", "acordo", "ainda_trabalhando"], required: true },
-      { id: "worked_months", label: "Quanto tempo você trabalhou lá (em meses)?", type: "number", unit: "meses", required: true },
-      { id: "received_verbas", label: "Recebeu as verbas rescisórias corretamente?", type: "choice", options: ["sim", "nao", "nao_sei"], required: true }
+      { id: "situation", label: "O que aconteceu com seu emprego?", type: "choice", options: ["Demissão sem justa causa", "Demissão por justa causa", "Pedido de demissão/Acordo", "Quero sair por falta grave do patrão", "Ainda estou empregado"], required: true },
+      { id: "worked_months", label: "Tempo total na empresa (meses):", type: "number", unit: "meses", required: true },
+      { id: "fgts_status", label: "FGTS:", type: "choice", options: ["Recebi/Saquei tudo", "Recebi só parte ou nada", "Não sei informar"], required: true },
+      { id: "aviso_previo", label: "Aviso-prévio:", type: "choice", options: ["Trabalhei os dias", "Fui indenizado (recebi em dinheiro)", "Descontaram do meu salário", "Não recebi nada"], required: true },
+      { id: "cct_check", label: "Acordo da Categoria (CCT):", type: "choice", options: ["Recebi todos os extras (PLR, adicional, etc)", "Tenho dúvida se recebi tudo", "Não recebi nenhum extra"], required: true }
     ],
     evaluate(answers) {
-      const m = Number(answers.worked_months);
-      if (answers.situation === "demissao_sem_justa" && answers.received_verbas === "nao" && m > 0)
-        return { class: "provavel_direito", rationale: "Demissão sem justa causa sem pagamento de verbas — provável direito a cobrança." };
-      if (answers.situation === "rescisao_indireta" && m > 0)
-        return { class: "precisa_avaliacao", rationale: "Rescisão indireta exige comprovação de falta grave do empregador." };
-      if (answers.received_verbas === "sim")
-        return { class: "precisa_avaliacao", rationale: "Verbas pagas — pode haver diferenças a revisar." };
-      if (answers.situation === "ainda_trabalhando")
-        return { class: "precisa_avaliacao", rationale: "Emprego ativo — pode haver verbas vencidas a verificar." };
-      return { class: "precisa_avaliacao", rationale: "Situação trabalhista precisa de análise detalhada." };
+      const months = Number(answers.worked_months);
+      
+      if (answers.situation === "Demissão sem justa causa" && answers.fgts_status !== "Recebi/Saquei tudo") {
+        return { class: "provavel_direito", rationale: "FGTS incompleto em demissão sem justa causa. Traga o extrato do FGTS e a TRCT para conferência imediata." };
+      }
+      
+      if (answers.aviso_previo === "Descontaram do meu salário") {
+        return { class: "provavel_direito", rationale: "Desconto indevido de aviso-prévio é ilegal. Precisamos do contracheque final para restituição." };
+      }
+      
+      if (answers.cct_check === "Não recebi nenhum extra" && months > 12) {
+        return { class: "precisa_avaliacao", rationale: "Mais de 1 ano de casa sem extras da CCT? Traga seu último holerite e a Convenção Coletiva para auditoria completa." };
+      }
+
+      if (answers.situation === "Quero sair por falta grave do patrão") {
+        return { class: "precisa_avaliacao", rationale: "Rescisão indireta exige provas robustas. Liste todas as faltas graves e traga prints/testemunhas antes de agir." };
+      }
+
+      return { class: "precisa_avaliacao", rationale: "Para garantir que nenhuma verba foi esquecida, precisamos analisar seus documentos completos (TRCT, Extrato FGTS e Holerites)." };
     }
   },
-  revisao: {
-    label: "Revisão de benefício",
+
+  empresarial: {
+    label: "Serviços Empresariais / MEI",
     questions: [
-      { id: "benefit_type", label: "Qual benefício você recebe hoje?", type: "text", required: true },
-      { id: "years_receiving", label: "Há quantos anos você recebe?", type: "number", unit: "anos", required: true },
-      { id: "months_receiving", label: "E quantos meses a mais (além dos anos)?", type: "number", unit: "meses", required: false },
-      { id: "issue", label: "Qual o motivo da revisão?", type: "choice", options: ["valor_baixo", "erro_calculo", "mudanca_legislacao", "outro"], required: true }
+      { id: "service_type", label: "Qual serviço você precisa?", type: "choice", options: ["Abertura de empresa/MEI", "Regularização de CNPJ inativo", "Departamento Pessoal/Folha", "Contabilidade/Escrita Fiscal", "Alteração contratual"], required: true },
+      { id: "has_documents", label: "Já possui os documentos necessários?", type: "choice", options: ["Sim, tenho tudo", "Tenho alguns", "Não tenho nada ainda"], required: true }
     ],
     evaluate(answers) {
-      const y = Number(answers.years_receiving) || 0;
-      const m = Number(answers.months_receiving) || 0;
-      const total = y + (m / 12);
-      if (total > 10)
-        return { class: "precisa_avaliacao", rationale: `Você recebe há ${y} ano(s) e ${m} mes(es). Pode haver limite, mas algumas revisões ainda cabem.` };
-      if (answers.issue === "mudanca_legislacao")
-        return { class: "provavel_direito", rationale: "Mudança de legislação pode garantir revisão retroativa. Ótimo!" };
-      if (answers.issue === "erro_calculo" || answers.issue === "valor_baixo")
-        return { class: "precisa_avaliacao", rationale: "Possível erro de cálculo — precisa análise da RMI e das contribuições." };
-      return { class: "precisa_avaliacao", rationale: "Motivo da revisão precisa de análise detalhada." };
+      return { 
+        class: "precisa_avaliacao", 
+        rationale: "Cada caso empresarial é único. Precisamos entender seu regime tributário e obrigações para te orientar corretamente. Agende uma conversa inicial." 
+      };
+    }
+  },
+
+  acerto_cnis: {
+    label: "Acerto de CNIS / Vínculos",
+    questions: [
+      { id: "issue_type", label: "Qual o problema no seu CNIS?", type: "choice", options: ["Tempo não reconhecido", "Vínculo duplicado", "Dados errados", "Outro"], required: true },
+      { id: "has_proof", label: "Tem documentos que provam esse tempo/vínculo?", type: "choice", options: ["Sim, tenho provas", "Acho que tenho algo", "Não tenho nada"], required: true }
+    ],
+    evaluate(answers) {
+      if (answers.has_proof === "Sim, tenho provas") {
+        return { class: "provavel_direito", rationale: "Com provas documentais, temos grandes chances de acertar seu CNIS. Traga os originais para análise." };
+      }
+      return { class: "precisa_avaliacao", rationale: "Acerto de CNIS sem provas é complexo. Precisamos buscar alternativas jurídicas. Agende uma avaliação." };
+    }
+  },
+
+  planejamento_previdenciario: {
+    label: "Planejamento Previdenciário",
+    questions: [
+      { id: "goal", label: "Qual seu objetivo?", type: "choice", options: ["Aposentar mais cedo", "Aumentar o valor", "Entender minhas regras", "Organizar documentos"], required: true },
+      { id: "age", label: "Qual sua idade atual?", type: "number", unit: "anos", required: true }
+    ],
+    evaluate(answers) {
+      return { 
+        class: "precisa_avaliacao", 
+        rationale: "Planejamento previdenciário exige estudo personalizado do seu histórico. É o melhor investimento para garantir seu futuro. Vamos agendar?" 
+      };
     }
   }
 };
@@ -157,9 +156,9 @@ function runTriagem(benefitType, answers) {
 }
 
 const CLASSIFICATION_LABELS = {
-  provavel_direito: "Provável direito",
-  precisa_avaliacao: "Precisa avaliação",
-  sem_direito: "Sem direito no momento"
+  provavel_direito: "Indício forte de direito",
+  precisa_avaliacao: "Necessita análise documental",
+  sem_direito: "Fora dos critérios atuais"
 };
 
 export { getBenefitConfig, getAllBenefits, runTriagem, CLASSIFICATION_LABELS };
