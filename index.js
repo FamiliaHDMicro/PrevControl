@@ -5,6 +5,7 @@
 
 import {
   getAllBenefits,
+  getAllSectors,
   getBenefitConfig,
   runTriagem,
   CLASSIFICATION_LABELS
@@ -42,6 +43,24 @@ export default {
     // ==========================================================
     // API PÚBLICA
     // ==========================================================
+
+    // ----------------------------------------------------------
+    // GET /api/sectors
+    // Carrega os setores disponíveis para a triagem
+    // ----------------------------------------------------------
+
+    if (
+      path === "/api/sectors" &&
+      request.method === "GET"
+    ) {
+      return json(
+        {
+          success: true,
+          sectors: getAllSectors()
+        },
+        corsHeaders
+      );
+    }
 
     // ----------------------------------------------------------
     // GET /api/benefits
