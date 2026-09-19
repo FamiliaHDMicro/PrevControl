@@ -1,12 +1,18 @@
 {
   "name": "prevcontrol",
-  "main": "src/index.js",
+  "main": "index.js",
   "compatibility_date": "2026-08-28",
+  "assets": {
+    "directory": "./public"
+  },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "prevcontrol-db",
       "database_id": "a759cb1e-8e43-405d-a5d2-5aab5819adcd"
     }
-  ]
+  ],
+  "ai": {
+    "binding": "AI"
+  }
 }
