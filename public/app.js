@@ -173,7 +173,7 @@ function renderSuccess(i) {
           <div style="font-size: 0.95rem; color: #e2e8f0; line-height: 1.6;">${rationale}</div>
         </div>
         <div class="info-box">
-          💡 <strong style="color: #fff;">Importante:</strong> este é um resultado inicial e automático. Não substitui uma análise completa feita por um profissional.
+           <strong style="color: #fff;">Importante:</strong> este é um resultado inicial e automático. Não substitui uma análise completa feita por um profissional.
         </div>
         <div style="display: flex; flex-direction: column; gap: 0.8rem; margin-top: 1.5rem;">
           <a href="#" id="btn-whatsapp" class="nav-btn nav-btn-whatsapp" aria-label="Enviar resumo no WhatsApp">📱 Enviar resumo no WhatsApp</a>
