@@ -1,4 +1,4 @@
-// index.js — PrevControl Worker (Versão Sem Jarvis)
+// index.js — PrevControl Worker (Versão Final Cleiton)
 import { getAllBenefits, getBenefitConfig, runTriagem, CLASSIFICATION_LABELS } from "./rules.js";
 
 export default {
@@ -14,7 +14,7 @@ export default {
 
     if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-    // Rota Pública: Carregar Benefícios (alinhada com app.js)
+    // Rota Pública: Carregar Benefícios
     if (path === "/api/benefits" && request.method === "GET") {
       return json({ benefits: getAllBenefits() }, corsHeaders);
     }
@@ -29,7 +29,10 @@ export default {
         const result = runTriagem(benefit_type, answers);
         const leadId = await salvarLead(env, { name, phone, benefit_type, answers, result });
         
-        const msg = `Olá! Sou ${name}. Fiz a triagem automática.\n📋 Assunto: ${benefit_type}\n✅ Resultado: ${CLASSIFICATION_LABELS[result.class]}\n📝 ${result.rationale}`;
+        // Mensagem Educativa (Estilo Cleiton/Dra.)
+        const docWarning = "\n\n⚠️ Para agilizar sua análise completa, já separe: Extrato CNIS, Carteiras de Trabalho antigas, TRCT e Documentos de identidade. Sem esses papéis, a consulta fica incompleta devido às mudanças na lei.";
+        
+        const msg = `Olá! Sou ${name}. Fiz a triagem no site.\n📋 Assunto: ${benefit_type}\n✅ Resultado: ${CLASSIFICATION_LABELS[result.class]}\n📝 ${result.rationale}${docWarning}`;
         const waLink = `https://wa.me/${env.WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
 
         return json({ 
@@ -76,7 +79,6 @@ async function salvarLead(env, { name, phone, benefit_type, answers, result }) {
 async function handleAdminAuth(request, env, handler, corsHeaders) {
   const auth = request.headers.get("Authorization") || "";
   const token = auth.replace("Bearer ", "");
-  // Aceita ADMIN_TOKEN, USER1_TOKEN e USER2_TOKEN
   const validTokens = [env.ADMIN_TOKEN, env.USER1_TOKEN, env.USER2_TOKEN].filter(Boolean);
   if (!validTokens.includes(token)) return json({ error: "Não autorizado" }, corsHeaders, 401);
   return handler();
