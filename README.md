@@ -1,27 +1,24 @@
-# PreviControl / PrevConsulta
+# PrevControl — Triagem Previdenciária Gratuita
 
-Sistema de triagem preliminar de direitos previdenciários desenvolvido no modelo **Terminal Burro (Single File)** para execução de **custo zero** no Cloudflare Workers.
+Sistema de triagem determinística para escritório previdenciário. Custo zero, acessível e sem IA generativa paga.
 
-## 🚀 Tecnologias Utilizadas
+## Estrutura
+- `index.js` — Worker principal (APIs + autenticação + servir assets)
+- `rules.js` — Motor de regras fixas (sem alucinação, linguagem simples)
+- `public/` — Frontend acessível (HTML/CSS/JS)
+- `wrangler.jsonc` — Configuração Cloudflare Pages + D1
 
-* **Cloudflare Workers:** Execução serverless do HTML e rotas de API.
-* **Tailwind CSS:** Estilização via CDN.
-* **JavaScript (ES6+):** Lógica de triagem e persistência no navegador/banco.
-* **WhatsApp API (wa.me):** Integração nativa e gratuita para envio de relatórios aos atendentes.
+## Deploy
+1. Configure as Secrets no Cloudflare Pages:
+   - ADMIN_TOKEN, USER1_TOKEN, USER2_TOKEN
+   - WHATSAPP_NUMBER
+2. Execute: `npm run deploy`
 
-## ⚙️ Arquitetura do Sistema
+## Banco de Dados
+Tabela `leads` já criada no D1 remoto (`prevcontrol-db`). Schema validado via Studio.
 
-* **Terminal Burro / Landing Page:** Interface ultraleve que roda direto na nuvem, sem ocupar espaço de armazenamento no dispositivo do cliente.
-* **Painel de Controle:** Área restrita para gestão de leads e configurações de atendimento.
-* **Custo Zero:** Funciona 100% dentro do plano gratuito da Cloudflare e sem custos de API externa da Meta.
-
-## 📁 Estrutura de Arquivos
-
-* `index.js` — Código-fonte principal com renderização de HTML, lógica de triagem e rotas de API.
-* `wrangler.jsonc` — Configuração de deploy da Cloudflare.
-* `README.md` — Documentação do projeto.
-
-## 🔐 Níveis de Acesso
-
-* **Administrador (`admin`):** Acesso completo a relatórios, configurações e gestão de usuários.
-* **Atendentes (`atendimento1`, `atendimento2`):** Acesso operacional para triagem de leads e redirecionamento.
+## Acessibilidade
+- Navegação por teclado (setas esquerda/direita)
+- ARIA labels em todos os elementos interativos
+- Contraste alto + fallback para celulares lentos (backdrop-filter)
+- Linguagem simplificada (sem juridiquês, cálculo automático de renda per capita)
