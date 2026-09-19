@@ -1,27 +1,35 @@
-// index.js — PrevControl Worker
-// API principal do sistema
+// ============================================================
+// PREVCONTROL — CLOUDFLARE WORKER
+// Versão integrada com a landing/frontend atual
+// ============================================================
 
 import {
   getAllBenefits,
-  getAllSectors,
-  getBenefitsBySector,
   getBenefitConfig,
   runTriagem,
   CLASSIFICATION_LABELS
 } from "./rules.js";
 
+
+// ============================================================
+// WORKER PRINCIPAL
+// ============================================================
+
 export default {
-
   async fetch(request, env, ctx) {
-
     const url = new URL(request.url);
     const path = url.pathname;
 
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization"
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Max-Age": "86400"
     };
+
+    // ----------------------------------------------------------
+    // CORS / OPTIONS
+    // ----------------------------------------------------------
 
     if (request.method === "OPTIONS") {
       return new Response(null, {
@@ -30,224 +38,954 @@ export default {
       });
     }
 
-    // =========================================================
-    // CONFIGURAÇÃO PÚBLICA
-    // =========================================================
 
-    if (path === "/api/sectors" && request.method === "GET") {
-      return json({
-        sectors: getAllSectors()
-      }, corsHeaders);
-    }
+    // ==========================================================
+    // API PÚBLICA
+    // ==========================================================
 
-    if (path === "/api/benefits" && request.method === "GET") {
-      return json({
-        benefits: getAllBenefits()
-      }, corsHeaders);
-    }
+    // ----------------------------------------------------------
+    // GET /api/benefits
+    // Carrega os setores/serviços disponíveis para a landing
+    // ----------------------------------------------------------
 
-    if (path === "/api/benefits/previdencia" && request.method === "GET") {
-      return json({
-        benefits: getBenefitsBySector("previdencia")
-      }, corsHeaders);
-    }
-
-    if (path === "/api/benefits/trabalhista" && request.method === "GET") {
-      return json({
-        benefits: getBenefitsBySector("trabalhista")
-      }, corsHeaders);
-    }
-
-    if (path === "/api/benefits/empresarial" && request.method === "GET") {
-      return json({
-        benefits: getBenefitsBySector("empresarial")
-      }, corsHeaders);
-    }
-
-    // =========================================================
-    // TRIAGEM
-    // =========================================================
-
-    if (path === "/api/triagem" && request.method === "POST") {
-
+    if (
+      path === "/api/benefits" &&
+      request.method === "GET"
+    ) {
       try {
+        const benefits = getAllBenefits();
 
-        const body = await request.json();
-
-        const {
-          name,
-          phone,
-          benefit_type,
-          answers
-        } = body;
-
-        if (!name || !phone || !benefit_type || !answers) {
-          throw new Error("Dados incompletos.");
-        }
-
-        const benefit = getBenefitConfig(benefit_type);
-
-        if (!benefit) {
-          throw new Error("Assunto não reconhecido.");
-        }
-
-        const result = runTriagem(
-          benefit_type,
-          answers
-        );
-
-        const leadId = await salvarLead(
-          env,
+        return json(
           {
-            name,
-            phone,
-            benefit_type,
-            answers,
-            result
-          }
+            success: true,
+            benefits
+          },
+          corsHeaders
         );
-
-        const label =
-          CLASSIFICATION_LABELS[result.class] ||
-          "Necessita análise";
-
-        const docWarning =
-          "\n\nPara uma análise completa, separe seus documentos. " +
-          "O sistema faz apenas uma triagem inicial e não substitui " +
-          "a conferência de um profissional.";
-
-        const msg =
-          `Olá! Sou ${name}. Fiz a triagem no PrevControl.` +
-          `\n📋 Assunto: ${benefit.label}` +
-          `\n📌 Resultado inicial: ${label}` +
-          `\n📝 ${result.rationale}` +
-          docWarning;
-
-        const waNumber =
-          env.WHATSAPP_NUMBER ||
-          "5517991087449";
-
-        const waLink =
-          `https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`;
-
-        return json({
-          lead_id: leadId,
-          sector: benefit.sector,
-          benefit_type,
-          benefit_label: benefit.label,
-          classification: result.class,
-          classification_label: label,
-          rationale: result.rationale,
-          whatsapp_link: waLink
-        }, corsHeaders);
 
       } catch (error) {
-
-        return json({
-          error: error.message || "Erro na triagem."
-        }, corsHeaders, 400);
+        return json(
+          {
+            success: false,
+            error: "Não foi possível carregar as opções de atendimento."
+          },
+          corsHeaders,
+          500
+        );
       }
     }
 
-    // =========================================================
-    // ADMIN — LEADS
-    // =========================================================
+
+    // ----------------------------------------------------------
+    // GET /api/benefits/:key
+    // Consulta individual de um serviço
+    // ----------------------------------------------------------
 
     if (
-      path === "/api/admin/leads" &&
+      path.startsWith("/api/benefits/") &&
       request.method === "GET"
     ) {
+      const key = decodeURIComponent(
+        path.replace("/api/benefits/", "")
+      );
 
-      return handleAdminAuth(
-        request,
-        env,
-        async () => {
+      const benefit = getBenefitConfig(key);
 
-          const filter =
-            url.searchParams.get("classification");
+      if (!benefit) {
+        return json(
+          {
+            success: false,
+            error: "Serviço não encontrado."
+          },
+          corsHeaders,
+          404
+        );
+      }
 
-          const status =
-            url.searchParams.get("status");
-
-          const sector =
-            url.searchParams.get("sector");
-
-          let query =
-            "SELECT * FROM leads";
-
-          const conditions = [];
-          const params = [];
-
-          if (filter) {
-            conditions.push(
-              "classification = ?"
-            );
-
-            params.push(filter);
+      return json(
+        {
+          success: true,
+          benefit: {
+            key,
+            label: benefit.label,
+            questions: benefit.questions
           }
-
-          if (status) {
-            conditions.push(
-              "status = ?"
-            );
-
-            params.push(status);
-          }
-
-          if (sector) {
-            conditions.push(
-              "sector = ?"
-            );
-
-            params.push(sector);
-          }
-
-          if (conditions.length) {
-            query +=
-              " WHERE " +
-              conditions.join(" AND ");
-          }
-
-          query +=
-            " ORDER BY created_at DESC LIMIT 200";
-
-          const result =
-            await env.DB
-              .prepare(query)
-              .bind(...params)
-              .all();
-
-          return json({
-            leads: result.results
-          }, corsHeaders);
-
         },
         corsHeaders
       );
     }
 
-    // =========================================================
-    // FALLBACK
-    // =========================================================
+
+    // ==========================================================
+    // TRIAGEM
+    // ==========================================================
+
+    // ----------------------------------------------------------
+    // POST /api/triagem
+    // Recebe a triagem feita pelo visitante
+    // ----------------------------------------------------------
+
+    if (
+      path === "/api/triagem" &&
+      request.method === "POST"
+    ) {
+      return handleTriagem(request, env, corsHeaders);
+    }
+
+
+    // ==========================================================
+    // LOGIN ADMINISTRATIVO
+    // ==========================================================
+
+    // ----------------------------------------------------------
+    // POST /api/admin/login
+    //
+    // Aceita:
+    //
+    // {
+    //   type: "password",
+    //   username: "...",
+    //   password: "..."
+    // }
+    //
+    // ou
+    //
+    // {
+    //   type: "google",
+    //   credential: "..."
+    // }
+    //
+    // O login Google fica bloqueado até que uma validação real
+    // seja configurada. Não fingimos que o token é válido.
+    // ----------------------------------------------------------
+
+    if (
+      path === "/api/admin/login" &&
+      request.method === "POST"
+    ) {
+      return handleAdminLogin(request, env, corsHeaders);
+    }
+
+
+    // ==========================================================
+    // ADMIN — LEADS
+    // ==========================================================
+
+    // ----------------------------------------------------------
+    // GET /api/admin/leads
+    // ----------------------------------------------------------
+
+    if (
+      path === "/api/admin/leads" &&
+      request.method === "GET"
+    ) {
+      return handleAdminAuth(
+        request,
+        env,
+        corsHeaders,
+        async () => {
+          return handleAdminLeads(url, env, corsHeaders);
+        }
+      );
+    }
+
+
+    // ----------------------------------------------------------
+    // GET /api/admin/lead/:id
+    // ----------------------------------------------------------
+
+    if (
+      path.startsWith("/api/admin/lead/") &&
+      request.method === "GET"
+    ) {
+      return handleAdminAuth(
+        request,
+        env,
+        corsHeaders,
+        async () => {
+          const id = path.replace("/api/admin/lead/", "");
+
+          return handleAdminLead(id, env, corsHeaders);
+        }
+      );
+    }
+
+
+    // ----------------------------------------------------------
+    // PUT /api/admin/lead/:id/status
+    // ----------------------------------------------------------
+
+    if (
+      path.startsWith("/api/admin/lead/") &&
+      path.endsWith("/status") &&
+      request.method === "PUT"
+    ) {
+      return handleAdminAuth(
+        request,
+        env,
+        corsHeaders,
+        async () => {
+          const id = path
+            .replace("/api/admin/lead/", "")
+            .replace("/status", "");
+
+          return handleAdminLeadStatus(
+            id,
+            request,
+            env,
+            corsHeaders
+          );
+        }
+      );
+    }
+
+
+    // ==========================================================
+    // HEALTH CHECK
+    // ==========================================================
+
+    // ----------------------------------------------------------
+    // GET /api/health
+    // ----------------------------------------------------------
+
+    if (
+      path === "/api/health" &&
+      request.method === "GET"
+    ) {
+      return json(
+        {
+          success: true,
+          service: "PrevControl",
+          status: "online",
+          timestamp: new Date().toISOString()
+        },
+        corsHeaders
+      );
+    }
+
+
+    // ==========================================================
+    // ASSETS
+    // ==========================================================
+
+    // Tudo que não for API vai para os arquivos da landing.
+    // Isso impede que uma chamada /api/* seja engolida pelo
+    // fallback dos arquivos estáticos.
+    // ==========================================================
 
     if (env.ASSETS) {
       return env.ASSETS.fetch(request);
     }
 
-    return new Response(
-      "Not found",
+
+    // ==========================================================
+    // 404
+    // ==========================================================
+
+    return json(
       {
-        status: 404,
-        headers: corsHeaders
-      }
+        success: false,
+        error: "Rota não encontrada."
+      },
+      corsHeaders,
+      404
     );
   }
 };
 
 
-// =============================================================
+// ============================================================
+// TRIAGEM
+// ============================================================
+
+async function handleTriagem(
+  request,
+  env,
+  corsHeaders
+) {
+  try {
+    const body = await request.json();
+
+    const {
+      name,
+      phone,
+      benefit_type,
+      answers
+    } = body;
+
+
+    // ----------------------------------------------------------
+    // Validação básica
+    // ----------------------------------------------------------
+
+    if (!name || !phone || !benefit_type || !answers) {
+      return json(
+        {
+          success: false,
+          error: "Dados incompletos."
+        },
+        corsHeaders,
+        400
+      );
+    }
+
+
+    // ----------------------------------------------------------
+    // Confirma se o benefício/serviço existe
+    // ----------------------------------------------------------
+
+    const benefit = getBenefitConfig(benefit_type);
+
+    if (!benefit) {
+      return json(
+        {
+          success: false,
+          error: "O serviço selecionado não foi encontrado."
+        },
+        corsHeaders,
+        400
+      );
+    }
+
+
+    // ----------------------------------------------------------
+    // Executa motor de triagem
+    // ----------------------------------------------------------
+
+    const result = runTriagem(
+      benefit_type,
+      answers
+    );
+
+
+    // ----------------------------------------------------------
+    // Salva lead
+    // ----------------------------------------------------------
+
+    let leadId = null;
+
+    if (env.DB) {
+      leadId = await salvarLead(
+        env,
+        {
+          name,
+          phone,
+          benefit_type,
+          answers,
+          result
+        }
+      );
+    }
+
+
+    // ----------------------------------------------------------
+    // Mensagem educativa para WhatsApp
+    // ----------------------------------------------------------
+
+    const docWarning =
+      "\n\nPara agilizar sua análise completa, já separe seus documentos. " +
+      "Dependendo do caso, podem ser necessários CNIS, carteira de trabalho, " +
+      "documentos de rescisão, extratos, comprovantes e documentos pessoais.";
+
+
+    const classificationLabel =
+      CLASSIFICATION_LABELS[result.class] ||
+      "Necessita análise documental";
+
+
+    const msg =
+      `Olá! Sou ${name}. Fiz a triagem no site.` +
+      `\n📋 Assunto: ${benefit.label}` +
+      `\n✅ Resultado: ${classificationLabel}` +
+      `\n📝 ${result.rationale}` +
+      docWarning;
+
+
+    let whatsappLink = null;
+
+    if (env.WHATSAPP_NUMBER) {
+      whatsappLink =
+        `https://wa.me/${env.WHATSAPP_NUMBER}` +
+        `?text=${encodeURIComponent(msg)}`;
+    }
+
+
+    // ----------------------------------------------------------
+    // Resposta
+    // ----------------------------------------------------------
+
+    return json(
+      {
+        success: true,
+        lead_id: leadId,
+        classification: result.class,
+        classification_label: classificationLabel,
+        rationale: result.rationale,
+        whatsapp_link: whatsappLink
+      },
+      corsHeaders
+    );
+
+  } catch (error) {
+
+    console.error(
+      "Erro em /api/triagem:",
+      error
+    );
+
+    return json(
+      {
+        success: false,
+        error: "Não foi possível concluir a triagem."
+      },
+      corsHeaders,
+      500
+    );
+  }
+}
+
+
+// ============================================================
+// LOGIN ADMINISTRATIVO
+// ============================================================
+
+async function handleAdminLogin(
+  request,
+  env,
+  corsHeaders
+) {
+  try {
+
+    const body = await request.json();
+
+    const type = body.type || "password";
+
+
+    // ----------------------------------------------------------
+    // LOGIN POR USUÁRIO E SENHA
+    // ----------------------------------------------------------
+
+    if (type === "password") {
+
+      const username =
+        String(body.username || "").trim();
+
+      const password =
+        String(body.password || "");
+
+
+      if (!username || !password) {
+        return json(
+          {
+            success: false,
+            error: "Usuário e senha são obrigatórios."
+          },
+          corsHeaders,
+          400
+        );
+      }
+
+
+      const users = getAdminUsers(env);
+
+
+      const user = users.find(
+        item =>
+          item.username === username &&
+          item.password &&
+          safeEqual(
+            item.password,
+            password
+          )
+      );
+
+
+      if (!user) {
+        return json(
+          {
+            success: false,
+            error: "Usuário ou senha incorretos."
+          },
+          corsHeaders,
+          401
+        );
+      }
+
+
+      if (!user.token) {
+        return json(
+          {
+            success: false,
+            error: "Usuário administrativo sem token configurado."
+          },
+          corsHeaders,
+          500
+        );
+      }
+
+
+      return json(
+        {
+          success: true,
+          role: user.role,
+          token: user.token
+        },
+        corsHeaders
+      );
+    }
+
+
+    // ----------------------------------------------------------
+    // LOGIN GOOGLE
+    // ----------------------------------------------------------
+    //
+    // Não aceitamos simplesmente o credential do navegador.
+    // Uma validação real do Google precisa estar configurada.
+    //
+    // Assim evitamos criar uma falsa autenticação.
+    // ----------------------------------------------------------
+
+    if (type === "google") {
+
+      return json(
+        {
+          success: false,
+          error:
+            "Login Google ainda não está configurado neste Worker. " +
+            "Use o login administrativo por usuário e senha."
+        },
+        corsHeaders,
+        501
+      );
+    }
+
+
+    return json(
+      {
+        success: false,
+        error: "Tipo de autenticação não suportado."
+      },
+      corsHeaders,
+      400
+    );
+
+  } catch (error) {
+
+    console.error(
+      "Erro no login administrativo:",
+      error
+    );
+
+    return json(
+      {
+        success: false,
+        error: "Não foi possível realizar o login."
+      },
+      corsHeaders,
+      500
+    );
+  }
+}
+
+
+// ============================================================
+// USUÁRIOS ADMINISTRATIVOS
+// ============================================================
+//
+// Tudo vem das Variables/Secrets do Cloudflare.
+// Nenhuma senha fica gravada neste arquivo.
+//
+// Variáveis aceitas:
+//
+// ADMIN_USER
+// ADMIN_PASSWORD
+// ADMIN_TOKEN
+//
+// USER1_USER
+// USER1_PASSWORD
+// USER1_TOKEN
+//
+// USER2_USER
+// USER2_PASSWORD
+// USER2_TOKEN
+//
+// ============================================================
+
+function getAdminUsers(env) {
+
+  const users = [];
+
+
+  if (
+    env.ADMIN_USER &&
+    env.ADMIN_PASSWORD &&
+    env.ADMIN_TOKEN
+  ) {
+    users.push({
+      username: env.ADMIN_USER,
+      password: env.ADMIN_PASSWORD,
+      token: env.ADMIN_TOKEN,
+      role: "admin"
+    });
+  }
+
+
+  if (
+    env.USER1_USER &&
+    env.USER1_PASSWORD &&
+    env.USER1_TOKEN
+  ) {
+    users.push({
+      username: env.USER1_USER,
+      password: env.USER1_PASSWORD,
+      token: env.USER1_TOKEN,
+      role: "usuario"
+    });
+  }
+
+
+  if (
+    env.USER2_USER &&
+    env.USER2_PASSWORD &&
+    env.USER2_TOKEN
+  ) {
+    users.push({
+      username: env.USER2_USER,
+      password: env.USER2_PASSWORD,
+      token: env.USER2_TOKEN,
+      role: "usuario"
+    });
+  }
+
+
+  return users;
+}
+
+
+// ============================================================
+// AUTENTICAÇÃO ADMIN
+// ============================================================
+
+async function handleAdminAuth(
+  request,
+  env,
+  corsHeaders,
+  handler
+) {
+
+  const authorization =
+    request.headers.get("Authorization") || "";
+
+
+  if (!authorization.startsWith("Bearer ")) {
+    return json(
+      {
+        success: false,
+        error: "Não autorizado."
+      },
+      corsHeaders,
+      401
+    );
+  }
+
+
+  const token =
+    authorization.substring(7).trim();
+
+
+  if (!token) {
+    return json(
+      {
+        success: false,
+        error: "Token ausente."
+      },
+      corsHeaders,
+      401
+    );
+  }
+
+
+  const validTokens = [
+    env.ADMIN_TOKEN,
+    env.USER1_TOKEN,
+    env.USER2_TOKEN
+  ].filter(Boolean);
+
+
+  const valid =
+    validTokens.some(
+      validToken =>
+        safeEqual(validToken, token)
+    );
+
+
+  if (!valid) {
+    return json(
+      {
+        success: false,
+        error: "Sessão inválida ou expirada."
+      },
+      corsHeaders,
+      401
+    );
+  }
+
+
+  try {
+    return await handler();
+  } catch (error) {
+
+    console.error(
+      "Erro administrativo:",
+      error
+    );
+
+    return json(
+      {
+        success: false,
+        error: "Erro interno no painel administrativo."
+      },
+      corsHeaders,
+      500
+    );
+  }
+}
+
+
+// ============================================================
+// ADMIN — LISTAR LEADS
+// ============================================================
+
+async function handleAdminLeads(
+  url,
+  env,
+  corsHeaders
+) {
+
+  if (!env.DB) {
+    return json(
+      {
+        success: false,
+        error: "Banco de dados não configurado."
+      },
+      corsHeaders,
+      500
+    );
+  }
+
+
+  const classification =
+    url.searchParams.get("classification");
+
+  const status =
+    url.searchParams.get("status");
+
+
+  let query =
+    "SELECT * FROM leads";
+
+  const conditions = [];
+  const params = [];
+
+
+  if (classification) {
+    conditions.push(
+      "classification = ?"
+    );
+
+    params.push(classification);
+  }
+
+
+  if (status) {
+    conditions.push(
+      "status = ?"
+    );
+
+    params.push(status);
+  }
+
+
+  if (conditions.length) {
+    query +=
+      " WHERE " +
+      conditions.join(" AND ");
+  }
+
+
+  query +=
+    " ORDER BY created_at DESC LIMIT 200";
+
+
+  const result =
+    await env.DB
+      .prepare(query)
+      .bind(...params)
+      .all();
+
+
+  return json(
+    {
+      success: true,
+      leads: result.results || []
+    },
+    corsHeaders
+  );
+}
+
+
+// ============================================================
+// ADMIN — LEAD INDIVIDUAL
+// ============================================================
+
+async function handleAdminLead(
+  id,
+  env,
+  corsHeaders
+) {
+
+  if (!env.DB) {
+    return json(
+      {
+        success: false,
+        error: "Banco de dados não configurado."
+      },
+      corsHeaders,
+      500
+    );
+  }
+
+
+  const result =
+    await env.DB
+      .prepare(
+        "SELECT * FROM leads WHERE id = ? LIMIT 1"
+      )
+      .bind(id)
+      .first();
+
+
+  if (!result) {
+    return json(
+      {
+        success: false,
+        error: "Atendimento não encontrado."
+      },
+      corsHeaders,
+      404
+    );
+  }
+
+
+  return json(
+    {
+      success: true,
+      lead: result
+    },
+    corsHeaders
+  );
+}
+
+
+// ============================================================
+// ADMIN — ALTERAR STATUS
+// ============================================================
+
+async function handleAdminLeadStatus(
+  id,
+  request,
+  env,
+  corsHeaders
+) {
+
+  if (!env.DB) {
+    return json(
+      {
+        success: false,
+        error: "Banco de dados não configurado."
+      },
+      corsHeaders,
+      500
+    );
+  }
+
+
+  let body;
+
+  try {
+    body = await request.json();
+  } catch {
+    return json(
+      {
+        success: false,
+        error: "Dados inválidos."
+      },
+      corsHeaders,
+      400
+    );
+  }
+
+
+  const status =
+    String(body.status || "").trim();
+
+
+  const allowedStatuses = [
+    "novo",
+    "em_analise",
+    "aguardando_documentos",
+    "contatado",
+    "concluido",
+    "cancelado"
+  ];
+
+
+  if (!allowedStatuses.includes(status)) {
+    return json(
+      {
+        success: false,
+        error: "Status inválido."
+      },
+      corsHeaders,
+      400
+    );
+  }
+
+
+  const result =
+    await env.DB
+      .prepare(
+        "UPDATE leads SET status = ? WHERE id = ?"
+      )
+      .bind(status, id)
+      .run();
+
+
+  if (!result.success) {
+    return json(
+      {
+        success: false,
+        error: "Não foi possível atualizar o atendimento."
+      },
+      corsHeaders,
+      500
+    );
+  }
+
+
+  return json(
+    {
+      success: true,
+      status
+    },
+    corsHeaders
+  );
+}
+
+
+// ============================================================
 // SALVAR LEAD
-// =============================================================
+// ============================================================
 
 async function salvarLead(
   env,
@@ -260,14 +998,14 @@ async function salvarLead(
   }
 ) {
 
-  const benefit =
-    getBenefitConfig(benefit_type);
+  if (!env.DB) {
+    return null;
+  }
 
-  const sector =
-    benefit?.sector || "desconhecido";
 
-  const stmt =
-    env.DB.prepare(`
+  const statement =
+    env.DB.prepare(
+      `
       INSERT INTO leads
       (
         name,
@@ -276,73 +1014,40 @@ async function salvarLead(
         answers_json,
         classification,
         rationale,
-        status,
-        sector
+        status
       )
-      VALUES (?, ?, ?, ?, ?, ?, 'novo', ?)
-    `)
-    .bind(
-      name,
-      phone,
-      benefit_type,
-      JSON.stringify(answers),
-      result.class,
-      result.rationale,
-      sector
+      VALUES (?, ?, ?, ?, ?, ?, 'novo')
+      `
     );
+
 
   const insertResult =
-    await stmt.run();
+    await statement
+      .bind(
+        name,
+        phone,
+        benefit_type,
+        JSON.stringify(answers),
+        result.class,
+        result.rationale
+      )
+      .run();
 
-  return insertResult.meta.last_row_id;
+
+  return (
+    insertResult?.meta?.last_row_id ||
+    null
+  );
 }
 
 
-// =============================================================
-// AUTENTICAÇÃO ADMIN
-// =============================================================
-
-async function handleAdminAuth(
-  request,
-  env,
-  handler,
-  corsHeaders
-) {
-
-  const auth =
-    request.headers.get("Authorization") || "";
-
-  const token =
-    auth.replace("Bearer ", "");
-
-  const validTokens = [
-    env.ADMIN_TOKEN,
-    env.USER1_TOKEN,
-    env.USER2_TOKEN
-  ].filter(Boolean);
-
-  if (!validTokens.includes(token)) {
-
-    return json(
-      {
-        error: "Não autorizado"
-      },
-      corsHeaders,
-      401
-    );
-  }
-
-  return handler();
-}
-
-
-// =============================================================
-// JSON
-// =============================================================
+// ============================================================
+// JSON RESPONSE
+// ============================================================
 
 function json(
   data,
-  corsHeaders,
+  corsHeaders = {},
   status = 200
 ) {
 
@@ -351,10 +1056,48 @@ function json(
     {
       status,
       headers: {
-        "Content-Type":
-          "application/json; charset=utf-8",
+        "Content-Type": "application/json; charset=UTF-8",
+        "Cache-Control": "no-store",
         ...corsHeaders
       }
     }
   );
+}
+
+
+// ============================================================
+// COMPARAÇÃO SIMPLES
+// ============================================================
+//
+// Evita comparação direta espalhada pelo código.
+// Não substitui um sistema criptográfico completo, mas impede
+// que o código fique cheio de comparações diferentes.
+// ============================================================
+
+function safeEqual(a, b) {
+
+  if (
+    typeof a !== "string" ||
+    typeof b !== "string"
+  ) {
+    return false;
+  }
+
+
+  if (a.length !== b.length) {
+    return false;
+  }
+
+
+  let result = 0;
+
+
+  for (let i = 0; i < a.length; i++) {
+    result |=
+      a.charCodeAt(i) ^
+      b.charCodeAt(i);
+  }
+
+
+  return result === 0;
 }
