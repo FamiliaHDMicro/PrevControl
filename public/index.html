@@ -244,6 +244,54 @@
 
 
     <!-- =======================================================
+         NOTÍCIAS E INFORMAÇÕES EXTERNAS
+    ======================================================== -->
+
+    <section class="news-section" aria-labelledby="news-title">
+
+      <div class="container news-layout">
+
+        <div class="news-intro">
+          <span class="section-kicker">ATUALIZAÇÃO</span>
+          <h2 id="news-title">Informação que pode ajudar no seu próximo passo.</h2>
+          <p>
+            Consulte matérias e serviços publicados por órgãos oficiais.
+            O conteúdo abre no portal responsável e é atualizado fora do PrevControl.
+          </p>
+          <div class="news-rotation-note" aria-live="polite">
+            <span class="news-rotation-dot"></span>
+            Troca automática a cada 4 segundos
+          </div>
+        </div>
+
+        <article class="news-card" id="news-card" aria-live="polite">
+          <div class="news-card-topline">
+            <span id="news-card-category">INSS</span>
+            <span id="news-card-counter">01 / 04</span>
+          </div>
+          <h3 id="news-card-title">Carregando informação oficial...</h3>
+          <p id="news-card-summary">
+            Aguarde enquanto organizamos os conteúdos úteis para você.
+          </p>
+          <a
+            id="news-card-link"
+            href="https://www.gov.br/inss/pt-br/assuntos/ultimas-noticias"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Ler no portal oficial ↗
+          </a>
+          <div class="news-card-progress" aria-hidden="true">
+            <span id="news-card-progress-bar"></span>
+          </div>
+        </article>
+
+      </div>
+
+    </section>
+
+
+    <!-- =======================================================
          PREVIDÊNCIA / INSS
     ======================================================== -->
 
@@ -841,6 +889,49 @@
 
 
     <!-- =======================================================
+         AVALIAÇÃO DA EXPERIÊNCIA
+    ======================================================== -->
+
+    <section class="feedback-section" id="avaliacao" aria-labelledby="feedback-title">
+
+      <div class="container feedback-layout">
+
+        <div>
+          <span class="section-kicker">SUA OPINIÃO</span>
+          <h2 id="feedback-title">A informação foi útil?</h2>
+          <p>
+            Sua avaliação ajuda a melhorar a clareza da página.
+            Não informe dados pessoais ou detalhes do seu caso neste campo.
+          </p>
+        </div>
+
+        <form class="feedback-form" id="feedback-form" onsubmit="enviarAvaliacao(event)">
+          <fieldset class="rating-fieldset">
+            <legend>Como você avalia sua experiência?</legend>
+            <div class="rating-options">
+              <label><input type="radio" name="rating" value="1" required><span>1</span><small>Muito ruim</small></label>
+              <label><input type="radio" name="rating" value="2"><span>2</span><small>Ruim</small></label>
+              <label><input type="radio" name="rating" value="3"><span>3</span><small>Regular</small></label>
+              <label><input type="radio" name="rating" value="4"><span>4</span><small>Boa</small></label>
+              <label><input type="radio" name="rating" value="5"><span>5</span><small>Ótima</small></label>
+            </div>
+          </fieldset>
+
+          <label class="feedback-label" for="feedback-comment">Comentário opcional</label>
+          <textarea id="feedback-comment" maxlength="500" rows="3" placeholder="O que podemos melhorar?"></textarea>
+
+          <div class="feedback-actions">
+            <button type="submit" class="btn btn-primary">Enviar avaliação</button>
+            <span id="feedback-status" class="feedback-status" role="status" aria-live="polite"></span>
+          </div>
+        </form>
+
+      </div>
+
+    </section>
+
+
+    <!-- =======================================================
          CONFIANÇA / TRANSPARÊNCIA
     ======================================================== -->
 
@@ -1090,6 +1181,14 @@
         <a href="#como-funciona">
           Como funciona
         </a>
+
+        <button
+          type="button"
+          class="admin-footer-button"
+          onclick="abrirLoginModal()"
+        >
+          Acesso administrativo
+        </button>
 
       </div>
 

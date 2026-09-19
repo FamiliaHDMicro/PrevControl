@@ -1921,6 +1921,10 @@ document.addEventListener(
 
     initGoogleAuth();
 
+    initNewsRotation();
+
+    initFeedback();
+
 
     document.addEventListener(
       "input",
@@ -2040,4 +2044,124 @@ function mascaraTelefone(
     `${digits.slice(2, 7)}-` +
     digits.slice(7, 11)
   );
+}
+
+
+// ============================================================
+// NOTÍCIAS EXTERNAS
+// ============================================================
+
+const NEWS_ITEMS = [
+  {
+    category: "INSS",
+    title: "Notícias e orientações atualizadas sobre Previdência",
+    summary: "Consulte matérias, avisos e informações publicadas pelo Instituto Nacional do Seguro Social.",
+    url: "https://www.gov.br/inss/pt-br/assuntos/ultimas-noticias"
+  },
+  {
+    category: "TRABALHO",
+    title: "Informações do Ministério do Trabalho e Emprego",
+    summary: "Acesse serviços, orientações e conteúdos oficiais relacionados ao trabalho e ao emprego.",
+    url: "https://www.gov.br/trabalho-e-emprego/pt-br"
+  },
+  {
+    category: "SERVIÇOS",
+    title: "Meu INSS: serviços digitais para o cidadão",
+    summary: "Consulte benefícios, requerimentos e outros serviços diretamente no portal oficial.",
+    url: "https://www.gov.br/pt-br/temas/meu-inss"
+  },
+  {
+    category: "QUALIFICAÇÃO",
+    title: "Cursos gratuitos para aprender e se organizar",
+    summary: "Conheça cursos e conteúdos do Sebrae e da Escola Virtual do Governo.",
+    url: "https://www.escolavirtual.gov.br/"
+  }
+];
+
+let newsIndex = 0;
+let newsTimer = null;
+
+function renderNewsItem() {
+  const item = NEWS_ITEMS[newsIndex];
+  const category = document.getElementById("news-card-category");
+  const counter = document.getElementById("news-card-counter");
+  const title = document.getElementById("news-card-title");
+  const summary = document.getElementById("news-card-summary");
+  const link = document.getElementById("news-card-link");
+  const progress = document.getElementById("news-card-progress-bar");
+
+  if (!item || !category || !counter || !title || !summary || !link) {
+    return;
+  }
+
+  category.textContent = item.category;
+  counter.textContent = `${String(newsIndex + 1).padStart(2, "0")} / ${String(NEWS_ITEMS.length).padStart(2, "0")}`;
+  title.textContent = item.title;
+  summary.textContent = item.summary;
+  link.href = item.url;
+
+  if (progress) {
+    progress.classList.remove("is-running");
+    void progress.offsetWidth;
+    progress.classList.add("is-running");
+  }
+}
+
+function initNewsRotation() {
+  renderNewsItem();
+
+  if (NEWS_ITEMS.length < 2) {
+    return;
+  }
+
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    return;
+  }
+
+  newsTimer = window.setInterval(() => {
+    newsIndex = (newsIndex + 1) % NEWS_ITEMS.length;
+    renderNewsItem();
+  }, 4000);
+}
+
+
+// ============================================================
+// AVALIAÇÃO DA EXPERIÊNCIA
+// ============================================================
+
+function initFeedback() {
+  const form = document.getElementById("feedback-form");
+  const status = document.getElementById("feedback-status");
+
+  if (!form || !status) {
+    return;
+  }
+
+  if (localStorage.getItem("prevcontrol_feedback_sent") === "1") {
+    status.textContent = "Obrigado por avaliar o PrevControl.";
+  }
+}
+
+function enviarAvaliacao(event) {
+  event.preventDefault();
+
+  const form = event.currentTarget;
+  const rating = form.querySelector("input[name=rating]:checked")?.value;
+  const comment = document.getElementById("feedback-comment")?.value.trim() || "";
+  const status = document.getElementById("feedback-status");
+
+  if (!rating || !status) {
+    return;
+  }
+
+  // A avaliação não coleta nome, telefone ou dados do caso.
+  // O marcador local evita o reenvio repetido no mesmo navegador.
+  localStorage.setItem("prevcontrol_feedback_sent", "1");
+  localStorage.setItem(
+    "prevcontrol_feedback_last",
+    JSON.stringify({ rating, comment, submittedAt: new Date().toISOString() })
+  );
+
+  status.textContent = "Obrigado pela avaliação.";
+  form.reset();
 }
