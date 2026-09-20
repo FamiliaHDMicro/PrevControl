@@ -1,5 +1,5 @@
 // ============================================================
-// app.js — PrevControl com Jarvis & Katerina
+// app.js — PrevControl com Jarvis & Katerina (CORRIGIDO)
 // Interface pública de triagem com voz
 // ============================================================
 
@@ -19,7 +19,8 @@ const state = {
   sectors: [],
   benefits: [],
   isSpeaking: false,
-  speechQueue: []
+  speechQueue: [],
+  voiceEnabled: true // ✅ Controle global de voz
 };
 
 // ============================================================
@@ -55,7 +56,7 @@ function isFemaleVoice() {
 // ============================================================
 
 async function speak(text) {
-  if (!text) return;
+  if (!text || !state.voiceEnabled) return; // ✅ Respeita toggle global
 
   if (state.isSpeaking) {
     state.speechQueue.push(text);
@@ -66,7 +67,6 @@ async function speak(text) {
   updateJarvisIndicator(true, text);
 
   try {
-    // Tentar Edge TTS via API (melhor qualidade)
     const response = await fetch("/api/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -119,9 +119,7 @@ function speakFallback(text) {
     utterance.onend = resolve;
     utterance.onerror = resolve;
 
-    // Timeout de segurança
     setTimeout(resolve, Math.max(text.length * 80, 5000));
-
     window.speechSynthesis.speak(utterance);
   });
 }
@@ -131,6 +129,19 @@ function stopSpeaking() {
   state.isSpeaking = false;
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   updateJarvisIndicator(false, "");
+}
+
+// ✅ Toggle global de voz
+function toggleVoice() {
+  state.voiceEnabled = !state.voiceEnabled;
+  if (!state.voiceEnabled) stopSpeaking();
+  
+  localStorage.setItem('prevcontrol_voice', String(state.voiceEnabled));
+  
+  document.querySelectorAll('.voice-toggle-btn').forEach(btn => {
+    btn.textContent = state.voiceEnabled ? "🔊" : "🔇";
+    btn.setAttribute('aria-label', state.voiceEnabled ? 'Desativar voz' : 'Ativar voz');
+  });
 }
 
 // ============================================================
@@ -157,6 +168,7 @@ function renderJarvisIndicator(message) {
   const name = getAssistantName();
   const avatarClass = female ? "jarvis-avatar female" : "jarvis-avatar";
   const emoji = female ? "👩" : "👨";
+  const voiceIcon = state.voiceEnabled ? "🔊" : "🔇";
 
   return `
     <div class="jarvis-indicator">
@@ -164,6 +176,11 @@ function renderJarvisIndicator(message) {
       <div class="jarvis-text">
         <strong>${escapeHtml(name)}:</strong> ${escapeHtml(message)}
       </div>
+      <button onclick="toggleVoice()" class="voice-toggle-btn" 
+              aria-label="${state.voiceEnabled ? 'Desativar voz' : 'Ativar voz'}"
+              style="background:none;border:none;font-size:1.2rem;cursor:pointer;padding:0 0.5rem;opacity:0.7;transition:opacity 0.2s;">
+        ${voiceIcon}
+      </button>
     </div>
   `;
 }
@@ -209,7 +226,7 @@ async function loadConfig() {
 }
 
 // ============================================================
-// SAUDAÇÃO
+// SAUDAÇÃO DINÂMICA
 // ============================================================
 
 function getGreeting() {
@@ -217,6 +234,16 @@ function getGreeting() {
   if (hour >= 5 && hour < 12) return "Bom dia";
   if (hour >= 12 && hour < 18) return "Boa tarde";
   return "Boa noite";
+}
+
+// ✅ Mensagem de boas-vindas contextualizada (evita repetição)
+function getWelcomeMessage() {
+  const greeting = getGreeting();
+  if (!state.answers.sector) {
+    return `${greeting}! Bem-vindo ao PrevControl. Escolha abaixo o assunto que mais combina com o que está acontecendo.`;
+  }
+  const name = getAssistantName();
+  return `${greeting}! Sou ${name}. Em que posso te ajudar hoje?`;
 }
 
 // ============================================================
@@ -236,11 +263,9 @@ function buildSlides() {
 
   renderAllSlides();
   renderDots();
+  
+  // ✅ APENAS goToSlide(0) fala agora. Removido o setTimeout duplicado.
   goToSlide(0);
-
-  setTimeout(() => {
-    speak(`${getGreeting()}! Sou o Jarvis. Em que posso te ajudar hoje?`);
-  }, 800);
 }
 
 function renderAllSlides() {
@@ -264,17 +289,17 @@ function renderSlide(slide, index) {
 }
 
 // ============================================================
-// TELA 0 — BOAS-VINDAS
+// RENDERIZAÇÃO DAS TELAS
 // ============================================================
 
 function renderWelcome(index) {
-  const greeting = getGreeting();
+  const msg = getWelcomeMessage();
   return `
     <div class="slide" data-slide="${index}">
       <div class="module-card">
         <div class="module-number">PrevControl</div>
-        ${renderJarvisIndicator(`${greeting}! Sou o Jarvis. Em que posso te ajudar hoje?`)}
-        <h2 class="module-title">${greeting}!</h2>
+        ${renderJarvisIndicator(msg)}
+        <h2 class="module-title">${getGreeting()}!</h2>
         <p class="module-subtitle">
           Vou te ajudar a entender sua situação. Não precisa se preocupar com termos difíceis — eu explico tudo. Vamos juntos?
         </p>
@@ -287,10 +312,6 @@ function renderWelcome(index) {
       </div>
     </div>`;
 }
-
-// ============================================================
-// TELA 1 — SETOR
-// ============================================================
 
 function renderSector(index) {
   return `
@@ -320,10 +341,6 @@ function renderSector(index) {
     </div>`;
 }
 
-// ============================================================
-// TELA 2 — IDENTIDADE
-// ============================================================
-
 function renderIdentity(index) {
   return `
     <div class="slide" data-slide="${index}">
@@ -350,10 +367,6 @@ function renderIdentity(index) {
       </div>
     </div>`;
 }
-
-// ============================================================
-// TELA 3 — ASSUNTO
-// ============================================================
 
 function renderRouter(index) {
   const options = state.benefits.filter(b => b.sector === state.answers.sector);
@@ -385,10 +398,6 @@ function renderRouter(index) {
       </div>
     </div>`;
 }
-
-// ============================================================
-// TELA N — PERGUNTA
-// ============================================================
 
 function renderQuestion(slide, index) {
   const q = slide.question;
@@ -434,10 +443,6 @@ function renderQuestion(slide, index) {
     </div>`;
 }
 
-// ============================================================
-// TELA — OBSERVAÇÕES
-// ============================================================
-
 function renderFinal(index) {
   return `
     <div class="slide" data-slide="${index}">
@@ -455,10 +460,6 @@ function renderFinal(index) {
       </div>
     </div>`;
 }
-
-// ============================================================
-// TELA — CONSENTIMENTO
-// ============================================================
 
 function renderConsent(index) {
   const firstName = escapeHtml(String(state.answers.nome || "").trim().split(/\s+/)[0]);
@@ -484,10 +485,6 @@ function renderConsent(index) {
       </div>
     </div>`;
 }
-
-// ============================================================
-// TELA — RESULTADO
-// ============================================================
 
 function renderSuccess(index) {
   const label = state.answers.classificationLabel || "";
@@ -551,6 +548,7 @@ function goToSlide(index) {
     if (firstInput) firstInput.focus();
   }, 500);
 
+  // ✅ ÚNICA chamada de fala por slide (correção da duplicação)
   setTimeout(() => speakCurrentSlide(index), 800);
 }
 
@@ -560,7 +558,7 @@ function speakCurrentSlide(index) {
 
   switch (slide.type) {
     case "welcome":
-      speak(`${getGreeting()}! Sou o Jarvis. Em que posso te ajudar hoje?`);
+      speak(getWelcomeMessage()); // ✅ Usa mensagem dinâmica sem repetição
       break;
     case "sector":
       speak("Me conta: onde podemos ajudar você? Escolha o assunto abaixo.");
@@ -949,7 +947,6 @@ function fecharLoginModal() {
   if (modal) modal.classList.add("hidden");
 }
 
-// Interceptor admin
 const originalFetch = window.fetch.bind(window);
 window.fetch = async function (...args) {
   const url = String(args[0]);
@@ -977,6 +974,12 @@ function mascaraTelefone(value) {
 // ============================================================
 
 document.addEventListener("DOMContentLoaded", () => {
+  // ✅ Restaura preferência de voz salva
+  const savedVoicePref = localStorage.getItem('prevcontrol_voice');
+  if (savedVoicePref !== null) {
+    state.voiceEnabled = savedVoicePref === 'true';
+  }
+
   loadConfig();
   initGoogleAuth();
   initNewsRotation();
