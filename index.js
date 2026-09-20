@@ -258,7 +258,80 @@ export default {
       );
     }
 
+// ============================================================
+// TTS — EDGE TTS (GRATUITO, SEM API KEY)
+// ============================================================
 
+async function handleTTS(request, env, corsHeaders) {
+  try {
+    const body = await request.json();
+    const text = String(body.text || "").trim();
+    const voice = String(body.voice || "pt-BR-AntonioNeural").trim();
+
+    if (!text) {
+      return json(
+        { success: false, error: "Texto ausente." },
+        corsHeaders,
+        400
+      );
+    }
+
+    // Limite de segurança: 500 caracteres por requisição
+    const safeText = text.slice(0, 500);
+
+    // Voices permitidas (whitelist)
+    const allowedVoices = [
+      "pt-BR-AntonioNeural",
+      "pt-BR-FranciscaNeural"
+    ];
+
+    const safeVoice = allowedVoices.includes(voice)
+      ? voice
+      : "pt-BR-AntonioNeural";
+
+    // Chamar Edge TTS (Microsoft, gratuito)
+    const edgeResponse = await fetch(
+      "https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/ssml+xml",
+          "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
+          "User-Agent": "okhttp/4.5.0"
+        },
+        body: `<speak version='1.0' xml:lang='pt-BR'>
+          <voice xml:lang='pt-BR' xml:gender='${safeVoice.includes("Francisca") ? "Female" : "Male"}' name='${safeVoice}'>
+            ${safeText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}
+          </voice>
+        </speak>`
+      }
+    );
+
+    if (!edgeResponse.ok) {
+      throw new Error(`Edge TTS erro: ${edgeResponse.status}`);
+    }
+
+    const audioBuffer = await edgeResponse.arrayBuffer();
+
+    return new Response(audioBuffer, {
+      status: 200,
+      headers: {
+        "Content-Type": "audio/mpeg",
+        "Cache-Control": "public, max-age=3600",
+        ...corsHeaders
+      }
+    });
+
+  } catch (error) {
+    console.error("Erro em /api/tts:", error);
+
+    return json(
+      { success: false, error: "Não foi possível gerar áudio." },
+      corsHeaders,
+      500
+    );
+  }
+}
     // ==========================================================
     // HEALTH CHECK
     // ==========================================================
