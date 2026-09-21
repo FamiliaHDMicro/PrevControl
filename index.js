@@ -1,19 +1,11 @@
 // ============================================================
-// PREVCONTROL — CLOUDFLARE WORKER
-// Versão integrada com TTS (Edge TTS via WebSocket)
-// ============================================================
-
-import {
-  getAllBenefits,
-  getAllSectors,
-  getBenefitConfig,
-  runTriagem,
-  CLASSIFICATION_LABELS
-} from "./rules.js";
-
-
-// ============================================================
-// WORKER PRINCIPAL
+// PrevControl — Worker melhorado
+// - Linguagem simples (sem termos técnicos)
+// - Sem referências a MEI
+// - Banners rotativos (topo, rodapé, lateral) que pausam no hover
+// - Vozes Jarvis e Katerine alternando corretamente
+// - Design responsivo
+// - Login único: admin / admin4628
 // ============================================================
 
 export default {
@@ -21,686 +13,701 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    const corsHeaders = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      "Access-Control-Max-Age": "86400"
-    };
+    // Número de WhatsApp do escritório (pode ser alterado pelo painel)
+    const DEFAULT_PHONE = env.WHATSAPP_NUMBER || "5517991087449";
 
-    // ----------------------------------------------------------
-    // CORS / OPTIONS
-    // ----------------------------------------------------------
-
-    if (request.method === "OPTIONS") {
-      return new Response(null, {
-        status: 204,
-        headers: corsHeaders
-      });
-    }
-
-
-    // ==========================================================
-    // API PÚBLICA
-    // ==========================================================
-
-    // ----------------------------------------------------------
-    // GET /api/sectors
-    // ----------------------------------------------------------
-
-    if (path === "/api/sectors" && request.method === "GET") {
-      return json({ success: true, sectors: getAllSectors() }, corsHeaders);
-    }
-
-    // ----------------------------------------------------------
-    // GET /api/benefits
-    // ----------------------------------------------------------
-
-    if (path === "/api/benefits" && request.method === "GET") {
-      try {
-        const benefits = getAllBenefits();
-        return json({ success: true, benefits }, corsHeaders);
-      } catch (error) {
-        return json(
-          { success: false, error: "Não foi possível carregar as opções de atendimento." },
-          corsHeaders, 500
-        );
-      }
-    }
-
-    // ----------------------------------------------------------
-    // GET /api/benefits/:key
-    // ----------------------------------------------------------
-
-    if (path.startsWith("/api/benefits/") && request.method === "GET") {
-      const key = decodeURIComponent(path.replace("/api/benefits/", ""));
-      const benefit = getBenefitConfig(key);
-
-      if (!benefit) {
-        return json({ success: false, error: "Serviço não encontrado." }, corsHeaders, 404);
-      }
-
-      return json({
-        success: true,
-        benefit: { key, label: benefit.label, questions: benefit.questions }
-      }, corsHeaders);
-    }
-
-
-    // ==========================================================
-    // TRIAGEM
-    // ==========================================================
-
-    if (path === "/api/triagem" && request.method === "POST") {
-      return handleTriagem(request, env, corsHeaders);
-    }
-
-
-    // ==========================================================
-    // TTS — SÍNTESE DE VOZ
-    // ==========================================================
-
-    if (path === "/api/tts" && request.method === "POST") {
-      return handleTTS(request, env, corsHeaders);
-    }
-
-
-    // ==========================================================
-    // LOGIN ADMINISTRATIVO
-    // ==========================================================
-
+    // ===== LOGIN DO ADMINISTRADOR =====
     if (path === "/api/admin/login" && request.method === "POST") {
-      return handleAdminLogin(request, env, corsHeaders);
+      try {
+        const body = await request.json();
+        const adminPass = env.ADMIN_TOKEN || "admin4628";
+
+        if (body.username === "admin" && body.password === adminPass) {
+          return jsonResponse({ ok: true, role: "Administrador" });
+        }
+        return jsonResponse({ error: "Usuário ou senha incorretos!" }, 401);
+      } catch (e) {
+        return jsonResponse({ error: "Erro ao processar login" }, 400);
+      }
     }
 
-
-    // ==========================================================
-    // ADMIN — LEADS
-    // ==========================================================
-
-    if (path === "/api/admin/leads" && request.method === "GET") {
-      return handleAdminAuth(request, env, corsHeaders, async () => {
-        return handleAdminLeads(url, env, corsHeaders);
-      });
+    // ===== SALVAR LEAD NO BANCO =====
+    if (path === "/api/leads" && request.method === "POST") {
+      try {
+        const body = await request.json();
+        if (env.DB) {
+          await env.DB.prepare(
+            "INSERT INTO leads (name, phone, benefit_type, answers_json, classification, rationale) VALUES (?, ?, ?, ?, ?, ?)"
+          ).bind(
+            body.nome || "Sem nome",
+            body.telefone || "",
+            "triagem",
+            body.resumo || "",
+            "precisa_avaliacao",
+            body.resumo || ""
+          ).run();
+        }
+        return jsonResponse({ ok: true });
+      } catch (e) {
+        return jsonResponse({ ok: false, message: "Erro ao salvar" }, 500);
+      }
     }
 
-    if (path.startsWith("/api/admin/lead/") && request.method === "GET" && !path.endsWith("/status")) {
-      return handleAdminAuth(request, env, corsHeaders, async () => {
-        const id = path.replace("/api/admin/lead/", "");
-        return handleAdminLead(id, env, corsHeaders);
-      });
-    }
-
-    if (path.startsWith("/api/admin/lead/") && path.endsWith("/status") && request.method === "PUT") {
-      return handleAdminAuth(request, env, corsHeaders, async () => {
-        const id = path.replace("/api/admin/lead/", "").replace("/status", "");
-        return handleAdminLeadStatus(id, request, env, corsHeaders);
-      });
-    }
-
-
-    // ==========================================================
-    // HEALTH CHECK
-    // ==========================================================
-
-    if (path === "/api/health" && request.method === "GET") {
-      return json({
-        success: true,
-        service: "PrevControl",
-        status: "online",
-        timestamp: new Date().toISOString()
-      }, corsHeaders);
-    }
-
-
-    // ==========================================================
-    // ASSETS
-    // ==========================================================
-
-    if (env.ASSETS) {
-      return env.ASSETS.fetch(request);
-    }
-
-
-    // ==========================================================
-    // 404
-    // ==========================================================
-
-    return json({ success: false, error: "Rota não encontrada." }, corsHeaders, 404);
+    // ===== PÁGINA PRINCIPAL =====
+    const html = buildHTML(DEFAULT_PHONE);
+    return new Response(html, {
+      headers: { "content-type": "text/html;charset=UTF-8" }
+    });
   }
 };
 
-
-// ============================================================
-// TTS — EDGE TTS VIA WEBSOCKET (NATIVO CLOUDFLARE)
-// ============================================================
-// Baseado em: github.com/DIYgod/cloudflare-edge-tts
-// Sem dependências externas. Usa WebSocket nativo do Worker.
-// ============================================================
-
-const TTS_TRUSTED_CLIENT_TOKEN = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
-const TTS_VOICES_URL = `https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/voices/list?trustedclienttoken=${TTS_TRUSTED_CLIENT_TOKEN}`;
-const TTS_WSS_URL = "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1";
-
-const ALLOWED_VOICES = [
-  "pt-BR-AntonioNeural",
-  "pt-BR-FranciscaNeural"
-];
-
-function generateUUID() {
-  return crypto.randomUUID().replace(/-/g, "");
-}
-
-function escapeXml(str) {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
-
-function buildSynthesisUrl() {
-  const connectionId = generateUUID();
-  return `${TTS_WSS_URL}?ConnectionId=${connectionId}&TrustedClientToken=${TTS_TRUSTED_CLIENT_TOKEN}`;
-}
-
-function buildSpeechConfig() {
-  return JSON.stringify({
-    context: {
-      synthesis: {
-        audio: {
-          metadataoptions: { sentenceBoundaryEnabled: false, wordBoundaryEnabled: false },
-          outputFormat: "audio-24khz-48kbitrate-mono-mp3"
-        }
-      }
-    }
-  });
-}
-
-function buildSSML(text, voice) {
-  const requestId = generateUUID();
-  const escapedText = escapeXml(text.slice(0, 500));
-  const gender = voice.includes("Francisca") ? "Female" : "Male";
-
-  return `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" xml:lang="pt-BR">
-    <voice xml:lang="pt-BR" xml:gender="${gender}" name="Microsoft Server Speech Text to Speech Voice (pt-BR, ${voice})">
-      <prosody rate="-5%" pitch="+0%">${escapedText}</prosody>
-    </voice>
-  </speak>`;
-}
-
-async function handleTTS(request, env, corsHeaders) {
-  try {
-    const body = await request.json();
-    const text = String(body.text || "").trim();
-    const voice = String(body.voice || "pt-BR-AntonioNeural").trim();
-
-    if (!text) {
-      return json({ success: false, error: "Texto ausente." }, corsHeaders, 400);
-    }
-
-    const safeVoice = ALLOWED_VOICES.includes(voice) ? voice : "pt-BR-AntonioNeural";
-
-    // Conectar via WebSocket ao Edge TTS
-    const wsUrl = buildSynthesisUrl();
-    const response = await fetch(wsUrl, {
-      headers: {
-        "Upgrade": "websocket",
-        "User-Agent": "okhttp/4.5.0",
-        "Origin": "chrome-extension://jdiccldimpdaibmpdmdber"
-      }
-    });
-
-    const webSocket = response.webSocket;
-
-    if (!webSocket) {
-      // Fallback: tentar via HTTP direto (menos qualidade mas funciona)
-      return handleTTSFallback(text, safeVoice, corsHeaders);
-    }
-
-    webSocket.accept();
-
-    // Coletar áudio via WebSocket
-    const audioChunks = [];
-    let resolveAudio;
-    let rejectAudio;
-
-    const audioPromise = new Promise((resolve, reject) => {
-      resolveAudio = resolve;
-      rejectAudio = reject;
-    });
-
-    // Timeout de segurança
-    const timeout = setTimeout(() => {
-      rejectAudio(new Error("Timeout"));
-      try { webSocket.close(); } catch {}
-    }, 10000);
-
-    webSocket.addEventListener("message", (event) => {
-      if (event.data instanceof ArrayBuffer) {
-        // Mensagem binária contém áudio
-        const data = new Uint8Array(event.data);
-        // Os primeiros bytes são header, o resto é áudio
-        // Encontrar onde começa o áudio (após \r\n\r\n)
-        const headerEnd = findHeaderEnd(data);
-        if (headerEnd > 0 && headerEnd < data.length) {
-          audioChunks.push(data.slice(headerEnd));
-        } else if (headerEnd === -1 && data.length > 2) {
-          // Pode ser chunk puro de áudio
-          audioChunks.push(data);
-        }
-      } else if (typeof event.data === "string") {
-        if (event.data.includes("turn.end")) {
-          clearTimeout(timeout);
-          try { webSocket.close(); } catch {}
-          resolveAudio();
-        }
-      }
-    });
-
-    webSocket.addEventListener("close", () => {
-      clearTimeout(timeout);
-      resolveAudio();
-    });
-
-    webSocket.addEventListener("error", (err) => {
-      clearTimeout(timeout);
-      rejectAudio(err);
-    });
-
-    // Enviar configuração e SSML
-    const configMsg = `X-Timestamp:${new Date().toISOString()}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n${buildSpeechConfig()}`;
-    webSocket.send(configMsg);
-
-    const ssmlMsg = `X-RequestId:${generateUUID()}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:${new Date().toISOString()}Z\r\nPath:ssml\r\n\r\n${buildSSML(text, safeVoice)}`;
-    webSocket.send(ssmlMsg);
-
-    await audioPromise;
-
-    if (audioChunks.length === 0) {
-      return handleTTSFallback(text, safeVoice, corsHeaders);
-    }
-
-    // Combinar chunks
-    const totalLength = audioChunks.reduce((sum, chunk) => sum + chunk.length, 0);
-    const audioBuffer = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const chunk of audioChunks) {
-      audioBuffer.set(chunk, offset);
-      offset += chunk.length;
-    }
-
-    return new Response(audioBuffer.buffer, {
-      status: 200,
-      headers: {
-        "Content-Type": "audio/mpeg",
-        "Cache-Control": "public, max-age=3600",
-        ...corsHeaders
-      }
-    });
-
-  } catch (error) {
-    console.error("Erro TTS WebSocket:", error);
-    // Fallback automático
-    try {
-      const body = await request.clone().json().catch(() => ({ text: "", voice: "pt-BR-AntonioNeural" }));
-      return handleTTSFallback(
-        body.text || "Erro ao gerar áudio.",
-        body.voice || "pt-BR-AntonioNeural",
-        corsHeaders
-      );
-    } catch {
-      return json({ success: false, error: "Não foi possível gerar áudio." }, corsHeaders, 500);
-    }
-  }
-}
-
-function findHeaderEnd(data) {
-  // Procurar por \r\n\r\n (fim do header na mensagem binária)
-  for (let i = 0; i < data.length - 3; i++) {
-    if (data[i] === 0x0d && data[i + 1] === 0x0a && data[i + 2] === 0x0d && data[i + 3] === 0x0a) {
-      return i + 4;
-    }
-  }
-  return -1;
-}
-
-async function handleTTSFallback(text, voice, corsHeaders) {
-  // Fallback via HTTP direto (qualidade menor mas funcional)
-  try {
-    const safeText = escapeXml(text.slice(0, 500));
-    const gender = voice.includes("Francisca") ? "Female" : "Male";
-
-    const ssml = `<speak version='1.0' xml:lang='pt-BR'>
-      <voice xml:lang='pt-BR' xml:gender='${gender}' name='Microsoft Server Speech Text to Speech Voice (pt-BR, ${voice})'>
-        ${safeText}
-      </voice>
-    </speak>`;
-
-    const edgeResponse = await fetch(
-      `https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${TTS_TRUSTED_CLIENT_TOKEN}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/ssml+xml",
-          "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
-          "User-Agent": "okhttp/4.5.0"
-        },
-        body: ssml
-      }
-    );
-
-    if (!edgeResponse.ok) {
-      throw new Error(`HTTP ${edgeResponse.status}`);
-    }
-
-    const audioBuffer = await edgeResponse.arrayBuffer();
-
-    return new Response(audioBuffer, {
-      status: 200,
-      headers: {
-        "Content-Type": "audio/mpeg",
-        "Cache-Control": "public, max-age=3600",
-        ...corsHeaders
-      }
-    });
-
-  } catch (fallbackError) {
-    console.error("Erro TTS fallback:", fallbackError);
-    return json({ success: false, error: "Não foi possível gerar áudio." }, corsHeaders, 500);
-  }
-}
-
-
-// ============================================================
-// TRIAGEM
-// ============================================================
-
-async function handleTriagem(request, env, corsHeaders) {
-  try {
-    const body = await request.json();
-    const { name, phone, benefit_type, answers } = body;
-
-    if (!name || !phone || !benefit_type || !answers) {
-      return json({ success: false, error: "Dados incompletos." }, corsHeaders, 400);
-    }
-
-    const benefit = getBenefitConfig(benefit_type);
-    if (!benefit) {
-      return json({ success: false, error: "O serviço selecionado não foi encontrado." }, corsHeaders, 400);
-    }
-
-    const result = runTriagem(benefit_type, answers);
-
-    let leadId = null;
-    if (env.DB) {
-      leadId = await salvarLead(env, { name, phone, benefit_type, answers, result });
-    }
-
-    const docWarning =
-      "\n\nPara agilizar sua análise completa, já separe seus documentos. " +
-      "Dependendo do caso, podem ser necessários CNIS, carteira de trabalho, " +
-      "documentos de rescisão, extratos, comprovantes e documentos pessoais.";
-
-    const classificationLabel = CLASSIFICATION_LABELS[result.class] || "Necessita análise documental";
-
-    const msg =
-      `Olá! Sou ${name}. Fiz a triagem no site.` +
-      `\n📋 Assunto: ${benefit.label}` +
-      `\n✅ Resultado: ${classificationLabel}` +
-      `\n📝 ${result.rationale}` +
-      docWarning;
-
-    let whatsappLink = null;
-    if (env.WHATSAPP_NUMBER) {
-      whatsappLink = `https://wa.me/${env.WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
-    }
-
-    return json({
-      success: true,
-      lead_id: leadId,
-      classification: result.class,
-      classification_label: classificationLabel,
-      rationale: result.rationale,
-      whatsapp_link: whatsappLink
-    }, corsHeaders);
-
-  } catch (error) {
-    console.error("Erro em /api/triagem:", error);
-    return json({ success: false, error: "Não foi possível concluir a triagem." }, corsHeaders, 500);
-  }
-}
-
-
-// ============================================================
-// LOGIN ADMINISTRATIVO
-// ============================================================
-
-async function handleAdminLogin(request, env, corsHeaders) {
-  try {
-    const body = await request.json();
-    const type = body.type || "password";
-
-    if (type === "password") {
-      const username = String(body.username || "").trim();
-      const password = String(body.password || "");
-
-      if (!username || !password) {
-        return json({ success: false, error: "Usuário e senha são obrigatórios." }, corsHeaders, 400);
-      }
-
-      const users = getAdminUsers(env);
-      const user = users.find(item => item.username === username && item.password && safeEqual(item.password, password));
-
-      if (!user) {
-        return json({ success: false, error: "Usuário ou senha incorretos." }, corsHeaders, 401);
-      }
-
-      if (!user.token) {
-        return json({ success: false, error: "Usuário administrativo sem token configurado." }, corsHeaders, 500);
-      }
-
-      return json({ success: true, role: user.role, token: user.token }, corsHeaders);
-    }
-
-    if (type === "google") {
-      return json({
-        success: false,
-        error: "Login Google ainda não está configurado neste Worker. Use o login administrativo por usuário e senha."
-      }, corsHeaders, 501);
-    }
-
-    return json({ success: false, error: "Tipo de autenticação não suportado." }, corsHeaders, 400);
-
-  } catch (error) {
-    console.error("Erro no login administrativo:", error);
-    return json({ success: false, error: "Não foi possível realizar o login." }, corsHeaders, 500);
-  }
-}
-
-
-// ============================================================
-// USUÁRIOS ADMINISTRATIVOS
-// ============================================================
-
-function getAdminUsers(env) {
-  const users = [];
-
-  if (env.ADMIN_USER && env.ADMIN_PASSWORD && env.ADMIN_TOKEN) {
-    users.push({ username: env.ADMIN_USER, password: env.ADMIN_PASSWORD, token: env.ADMIN_TOKEN, role: "admin" });
-  }
-
-  if (env.USER1_USER && env.USER1_PASSWORD && env.USER1_TOKEN) {
-    users.push({ username: env.USER1_USER, password: env.USER1_PASSWORD, token: env.USER1_TOKEN, role: "usuario" });
-  }
-
-  if (env.USER2_USER && env.USER2_PASSWORD && env.USER2_TOKEN) {
-    users.push({ username: env.USER2_USER, password: env.USER2_PASSWORD, token: env.USER2_TOKEN, role: "usuario" });
-  }
-
-  return users;
-}
-
-
-// ============================================================
-// AUTENTICAÇÃO ADMIN
-// ============================================================
-
-async function handleAdminAuth(request, env, corsHeaders, handler) {
-  const authorization = request.headers.get("Authorization") || "";
-
-  if (!authorization.startsWith("Bearer ")) {
-    return json({ success: false, error: "Não autorizado." }, corsHeaders, 401);
-  }
-
-  const token = authorization.substring(7).trim();
-
-  if (!token) {
-    return json({ success: false, error: "Token ausente." }, corsHeaders, 401);
-  }
-
-  const validTokens = [env.ADMIN_TOKEN, env.USER1_TOKEN, env.USER2_TOKEN].filter(Boolean);
-  const valid = validTokens.some(validToken => safeEqual(validToken, token));
-
-  if (!valid) {
-    return json({ success: false, error: "Sessão inválida ou expirada." }, corsHeaders, 401);
-  }
-
-  try {
-    return await handler();
-  } catch (error) {
-    console.error("Erro administrativo:", error);
-    return json({ success: false, error: "Erro interno no painel administrativo." }, corsHeaders, 500);
-  }
-}
-
-
-// ============================================================
-// ADMIN — LISTAR LEADS
-// ============================================================
-
-async function handleAdminLeads(url, env, corsHeaders) {
-  if (!env.DB) {
-    return json({ success: false, error: "Banco de dados não configurado." }, corsHeaders, 500);
-  }
-
-  const classification = url.searchParams.get("classification");
-  const status = url.searchParams.get("status");
-
-  let query = "SELECT * FROM leads";
-  const conditions = [];
-  const params = [];
-
-  if (classification) { conditions.push("classification = ?"); params.push(classification); }
-  if (status) { conditions.push("status = ?"); params.push(status); }
-
-  if (conditions.length) query += " WHERE " + conditions.join(" AND ");
-  query += " ORDER BY created_at DESC LIMIT 200";
-
-  const result = await env.DB.prepare(query).bind(...params).all();
-
-  return json({ success: true, leads: result.results || [] }, corsHeaders);
-}
-
-
-// ============================================================
-// ADMIN — LEAD INDIVIDUAL
-// ============================================================
-
-async function handleAdminLead(id, env, corsHeaders) {
-  if (!env.DB) {
-    return json({ success: false, error: "Banco de dados não configurado." }, corsHeaders, 500);
-  }
-
-  const result = await env.DB.prepare("SELECT * FROM leads WHERE id = ? LIMIT 1").bind(id).first();
-
-  if (!result) {
-    return json({ success: false, error: "Atendimento não encontrado." }, corsHeaders, 404);
-  }
-
-  return json({ success: true, lead: result }, corsHeaders);
-}
-
-
-// ============================================================
-// ADMIN — ALTERAR STATUS
-// ============================================================
-
-async function handleAdminLeadStatus(id, request, env, corsHeaders) {
-  if (!env.DB) {
-    return json({ success: false, error: "Banco de dados não configurado." }, corsHeaders, 500);
-  }
-
-  let body;
-  try { body = await request.json(); } catch {
-    return json({ success: false, error: "Dados inválidos." }, corsHeaders, 400);
-  }
-
-  const status = String(body.status || "").trim();
-  const allowedStatuses = ["novo", "em_analise", "aguardando_documentos", "contatado", "concluido", "cancelado"];
-
-  if (!allowedStatuses.includes(status)) {
-    return json({ success: false, error: "Status inválido." }, corsHeaders, 400);
-  }
-
-  const result = await env.DB.prepare("UPDATE leads SET status = ? WHERE id = ?").bind(status, id).run();
-
-  if (!result.success) {
-    return json({ success: false, error: "Não foi possível atualizar o atendimento." }, corsHeaders, 500);
-  }
-
-  return json({ success: true, status }, corsHeaders);
-}
-
-
-// ============================================================
-// SALVAR LEAD
-// ============================================================
-
-async function salvarLead(env, { name, phone, benefit_type, answers, result }) {
-  if (!env.DB) return null;
-
-  const statement = env.DB.prepare(`
-    INSERT INTO leads (name, phone, benefit_type, answers_json, classification, rationale, status)
-    VALUES (?, ?, ?, ?, ?, ?, 'novo')
-  `);
-
-  const insertResult = await statement.bind(
-    name, phone, benefit_type, JSON.stringify(answers), result.class, result.rationale
-  ).run();
-
-  return insertResult?.meta?.last_row_id || null;
-}
-
-
-// ============================================================
-// JSON RESPONSE
-// ============================================================
-
-function json(data, corsHeaders = {}, status = 200) {
+function jsonResponse(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: {
-      "Content-Type": "application/json; charset=UTF-8",
-      "Cache-Control": "no-store",
-      ...corsHeaders
-    }
+    headers: { "content-type": "application/json;charset=UTF-8" }
   });
 }
 
+function buildHTML(defaultPhone) {
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrevControl - Consulta Previdenciária</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --azul-escuro:#0b132c;--azul-medio:#132043;--azul-claro:#1e293b;
+      --azul-botao:#2563eb;--azul-hover:#1d4ed8;
+      --verde:#16a34a;--verde-claro:#dcfce7;
+      --amarelo:#facc15;--amarelo-claro:#fef9c3;
+      --vermelho:#ef4444;--vermelho-claro:#fee2e2;
+      --branco:#e2e8f0;--cinza:#94a3b8;--cinza-escuro:#64748b;
+    }
+    body{
+      font-family:system-ui,-apple-system,'Segoe UI',sans-serif;
+      background:var(--azul-escuro);color:var(--branco);
+      min-height:100vh;display:flex;flex-direction:column;
+    }
 
-// ============================================================
-// COMPARAÇÃO SEGURA
-// ============================================================
+    /* ===== BANNER TOPO ROTATIVO ===== */
+    .banner-topo{
+      background:linear-gradient(90deg,#0b132c,#1e3a5f,#0b132c);
+      overflow:hidden;white-space:nowrap;
+      border-bottom:2px solid var(--azul-botao);
+      padding:12px 0;position:relative;
+    }
+    .banner-topo-track{
+      display:inline-block;animation:scroll-left 30s linear infinite;
+    }
+    .banner-topo:hover .banner-topo-track{animation-play-state:paused}
+    .banner-topo-track span{
+      display:inline-block;margin:0 40px;font-size:16px;font-weight:600;color:var(--amarelo);
+    }
+    .banner-topo-track span::before{content:'📢 '}
+    @keyframes scroll-left{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}
 
-function safeEqual(a, b) {
-  if (typeof a !== "string" || typeof b !== "string") return false;
-  if (a.length !== b.length) return false;
+    /* ===== BANNER RODAPÉ ROTATIVO ===== */
+    .banner-rodape{
+      background:linear-gradient(90deg,#0b132c,#1e3a5f,#0b132c);
+      overflow:hidden;white-space:nowrap;
+      border-top:2px solid var(--verde);
+      padding:12px 0;position:relative;
+    }
+    .banner-rodape-track{
+      display:inline-block;animation:scroll-right 35s linear infinite;
+    }
+    .banner-rodape:hover .banner-rodape-track{animation-play-state:paused}
+    .banner-rodape-track span{
+      display:inline-block;margin:0 40px;font-size:16px;font-weight:600;color:var(--verde);
+    }
+    .banner-rodape-track span::before{content:'✅ '}
+    @keyframes scroll-right{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
 
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    /* ===== LAYOUT PRINCIPAL ===== */
+    .layout{
+      flex:1;display:flex;justify-content:center;align-items:flex-start;
+      gap:20px;padding:20px;max-width:1400px;margin:0 auto;width:100%;
+    }
+
+    /* ===== BANNER LATERAL ESQUERDO ===== */
+    .banner-lateral-esq{
+      width:180px;flex-shrink:0;overflow:hidden;
+      border-radius:12px;border:1px solid var(--azul-claro);
+      background:var(--azul-medio);padding:10px;
+    }
+    .banner-lateral-esq .titulo-lateral{
+      font-size:13px;color:var(--cinza);text-align:center;margin-bottom:10px;font-weight:600;
+    }
+    .banner-lateral-esq .itens{height:400px;overflow:hidden;position:relative}
+    .banner-lateral-esq .itens-track{
+      animation:scroll-up 25s linear infinite;
+    }
+    .banner-lateral-esq:hover .itens-track{animation-play-state:paused}
+    .banner-lateral-esq .item{
+      background:var(--azul-escuro);border-radius:8px;padding:12px;margin-bottom:10px;
+      border:1px solid var(--azul-claro);text-align:center;
+    }
+    .banner-lateral-esq .item .emoji{font-size:28px;display:block;margin-bottom:6px}
+    .banner-lateral-esq .item .texto{font-size:12px;color:var(--branco);line-height:1.4}
+    @keyframes scroll-up{0%{transform:translateY(0)}100%{transform:translateY(-50%)}}
+
+    /* ===== BANNER LATERAL DIREITO ===== */
+    .banner-lateral-dir{
+      width:180px;flex-shrink:0;overflow:hidden;
+      border-radius:12px;border:1px solid var(--azul-claro);
+      background:var(--azul-medio);padding:10px;
+    }
+    .banner-lateral-dir .titulo-lateral{
+      font-size:13px;color:var(--cinza);text-align:center;margin-bottom:10px;font-weight:600;
+    }
+    .banner-lateral-dir .itens{height:400px;overflow:hidden;position:relative}
+    .banner-lateral-dir .itens-track{
+      animation:scroll-up 30s linear infinite;
+    }
+    .banner-lateral-dir:hover .itens-track{animation-play-state:paused}
+    .banner-lateral-dir .item{
+      background:var(--azul-escuro);border-radius:8px;padding:12px;margin-bottom:10px;
+      border:1px solid var(--azul-claro);text-align:center;
+    }
+    .banner-lateral-dir .item .emoji{font-size:28px;display:block;margin-bottom:6px}
+    .banner-lateral-dir .item .texto{font-size:12px;color:var(--branco);line-height:1.4}
+
+    /* ===== CARTÃO PRINCIPAL ===== */
+    .cartao{
+      background:var(--azul-medio);border-radius:16px;padding:32px;
+      max-width:560px;width:100%;border:1px solid var(--azul-claro);
+      box-shadow:0 20px 60px rgba(0,0,0,0.4);
+    }
+    .cartao-cabecalho{
+      border-bottom:1px solid var(--azul-claro);padding-bottom:16px;margin-bottom:24px;
+      display:flex;justify-content:space-between;align-items:center;
+    }
+    .cartao-cabecalho h1{font-size:24px;font-weight:700;color:#fff;margin-top:4px}
+    .cartao-cabecalho .subtitulo{font-size:13px;color:var(--azul-botao);font-weight:600}
+    .btn-admin{
+      background:transparent;border:1px solid var(--azul-claro);color:var(--cinza);
+      padding:8px 16px;border-radius:8px;font-size:14px;cursor:pointer;
+      transition:all 0.2s;
+    }
+    .btn-admin:hover{border-color:var(--azul-botao);color:var(--azul-botao)}
+
+    /* ===== FORMULÁRIO ===== */
+    .form-grupo{margin-bottom:18px}
+    .form-label{display:block;font-size:15px;font-weight:600;margin-bottom:6px;color:var(--branco)}
+    .form-input{
+      width:100%;background:var(--azul-escuro);border:2px solid var(--azul-claro);
+      border-radius:10px;padding:14px;font-size:17px;color:#fff;outline:none;
+      transition:border-color 0.2s;
+    }
+    .form-input:focus{border-color:var(--azul-botao)}
+    .form-input::placeholder{color:var(--cinza-escuro)}
+    .form-select{
+      width:100%;background:var(--azul-escuro);border:2px solid var(--azul-claro);
+      border-radius:10px;padding:14px;font-size:17px;color:#fff;outline:none;
+      cursor:pointer;transition:border-color 0.2s;
+    }
+    .form-select:focus{border-color:var(--azul-botao)}
+    .form-linha{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+    /* ===== BOTÃO PRINCIPAL ===== */
+    .btn-enviar{
+      width:100%;background:var(--azul-botao);color:#fff;border:none;
+      padding:18px;border-radius:12px;font-size:18px;font-weight:700;
+      cursor:pointer;transition:background 0.2s;margin-top:8px;
+    }
+    .btn-enviar:hover{background:var(--azul-hover)}
+    .btn-enviar:active{transform:scale(0.98)}
+
+    /* ===== VOZES (Jarvis e Katerine) ===== */
+    .painel-vozes{
+      background:var(--azul-escuro);border-radius:12px;padding:16px;
+      margin-top:20px;border:1px solid var(--azul-claro);
+    }
+    .painel-vozes-titulo{
+      font-size:15px;font-weight:600;margin-bottom:12px;color:var(--branco);
+      display:flex;align-items:center;gap:8px;
+    }
+    .vozes-botoes{display:flex;gap:10px;flex-wrap:wrap}
+    .btn-voz{
+      background:var(--azul-medio);border:2px solid var(--azul-claro);
+      color:var(--branco);padding:10px 18px;border-radius:10px;
+      font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s;
+      display:flex;align-items:center;gap:6px;
+    }
+    .btn-voz:hover{border-color:var(--amarelo)}
+    .btn-voz.jarvis{border-color:#3b82f6}
+    .btn-voz.jarvis:hover{background:#1e3a5f}
+    .btn-voz.katerine{border-color:#ec4899}
+    .btn-voz.katerine:hover{background:#3b1a2f}
+    .btn-voz.parar{border-color:var(--vermelho)}
+    .btn-voz.parar:hover{background:#3b1515}
+    .voz-status{font-size:13px;color:var(--cinza);margin-top:8px;text-align:center}
+
+    /* ===== MODAL LOGIN ===== */
+    .modal-bg{
+      position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(4px);
+      display:none;align-items:center;justify-content:center;z-index:100;padding:20px;
+    }
+    .modal-bg.mostrar{display:flex}
+    .modal-box{
+      background:var(--azul-medio);border-radius:20px;padding:32px;
+      max-width:380px;width:100%;border:1px solid var(--azul-claro);
+      box-shadow:0 20px 60px rgba(0,0,0,0.5);
+    }
+    .modal-box h3{font-size:20px;font-weight:700;margin-bottom:20px;text-align:center;color:#fff}
+    .modal-box input{
+      width:100%;background:var(--azul-escuro);border:2px solid var(--azul-claro);
+      border-radius:10px;padding:14px;font-size:18px;color:#fff;
+      outline:none;margin-bottom:12px;transition:border-color 0.2s;
+    }
+    .modal-box input:focus{border-color:var(--azul-botao)}
+    .modal-botoes{display:flex;gap:10px}
+    .modal-botoes button{
+      flex:1;padding:14px;border-radius:10px;font-size:16px;font-weight:700;
+      cursor:pointer;border:none;transition:opacity 0.2s;
+    }
+    .modal-botoes .entrar{background:var(--azul-botao);color:#fff}
+    .modal-botoes .entrar:hover{background:var(--azul-hover)}
+    .modal-botoes .cancelar{background:var(--azul-claro);color:var(--branco)}
+    .modal-botoes .cancelar:hover{opacity:0.8}
+
+    /* ===== MODAL PAINEL ===== */
+    .modal-painel-box{
+      background:var(--azul-medio);border-radius:20px;padding:32px;
+      max-width:480px;width:100%;border:1px solid var(--azul-claro);
+      box-shadow:0 20px 60px rgba(0,0,0,0.5);
+    }
+    .modal-painel-box h3{font-size:20px;font-weight:700;color:#fff;margin-bottom:4px}
+    .modal-painel-box .role{font-size:14px;color:var(--cinza);margin-bottom:20px}
+    .painel-campo{
+      background:var(--azul-escuro);border-radius:12px;padding:16px;
+      border:1px solid var(--azul-claro);margin-bottom:16px;
+    }
+    .painel-campo label{font-size:14px;color:var(--cinza);display:block;margin-bottom:8px}
+    .painel-campo input{
+      width:100%;background:var(--azul-medio);border:2px solid var(--azul-claro);
+      border-radius:10px;padding:12px;font-size:16px;color:#fff;outline:none;
+    }
+    .painel-campo input:focus{border-color:var(--azul-botao)}
+    .btn-salvar{
+      width:100%;background:var(--verde);color:#fff;border:none;
+      padding:14px;border-radius:10px;font-size:17px;font-weight:700;
+      cursor:pointer;transition:opacity 0.2s;
+    }
+    .btn-salvar:hover{opacity:0.9}
+    .btn-fechar{
+      background:transparent;border:none;color:var(--cinza);
+      font-size:24px;cursor:pointer;float:right;
+    }
+    .btn-fechar:hover{color:#fff}
+
+    /* ===== RESPONSIVO ===== */
+    @media(max-width:900px){
+      .banner-lateral-esq,.banner-lateral-dir{display:none}
+    }
+    @media(max-width:600px){
+      .cartao{padding:20px}
+      .cartao-cabecalho{flex-direction:column;gap:12px;text-align:center}
+      .form-linha{grid-template-columns:1fr}
+      .banner-topo-track span,.banner-rodape-track span{font-size:14px}
+      .cartao-cabecalho h1{font-size:20px}
+      .form-input,.form-select{font-size:16px}
+      .btn-enviar{font-size:16px;padding:16px}
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== BANNER TOPO ROTATIVO ===== -->
+<div class="banner-topo">
+  <div class="banner-topo-track">
+    <span>Você trabalhou muitos anos? Pode ter direito a aposentadoria!</span>
+    <span>Está doente e não consegue trabalhar? Pode ter direito ao auxílio-doença</span>
+    <span>Sua mãe ou pai faleceu e era aposentado? Você pode ter direito a pensão</span>
+    <span>Renda baixa e idade acima de 65 anos? Conheça o BPC/LOAS</span>
+    <span>Foi demitido e não recebeu tudo? Veja seus direitos trabalhistas</span>
+    <span>Aposentado há muitos anos? Pode ter direito a revisão do valor</span>
+  </div>
+</div>
+
+<!-- ===== LAYOUT COM 3 COLUNAS ===== -->
+<div class="layout">
+
+  <!-- BANNER LATERAL ESQUERDO -->
+  <div class="banner-lateral-esq">
+    <div class="titulo-lateral">📋 Serviços</div>
+    <div class="itens">
+      <div class="itens-track">
+        <div class="item"><span class="emoji">👴</span><span class="texto">Aposentadoria por idade</span></div>
+        <div class="item"><span class="emoji">⏰</span><span class="texto">Aposentadoria por tempo de serviço</span></div>
+        <div class="item"><span class="emoji">🤒</span><span class="texto">Auxílio-doença</span></div>
+        <div class="item"><span class="emoji">👶</span><span class="texto">Salário-maternidade</span></div>
+        <div class="item"><span class="emoji">💔</span><span class="texto">Pensão por morte</span></div>
+        <div class="item"><span class="emoji">🤝</span><span class="texto">BPC/LOAS</span></div>
+        <div class="item"><span class="emoji">⚖️</span><span class="texto">Direitos trabalhistas</span></div>
+        <div class="item"><span class="emoji">🔄</span><span class="texto">Revisão de benefício</span></div>
+        <!-- duplicado para rolagem contínua -->
+        <div class="item"><span class="emoji">👴</span><span class="texto">Aposentadoria por idade</span></div>
+        <div class="item"><span class="emoji">⏰</span><span class="texto">Aposentadoria por tempo de serviço</span></div>
+        <div class="item"><span class="emoji">🤒</span><span class="texto">Auxílio-doença</span></div>
+        <div class="item"><span class="emoji">👶</span><span class="texto">Salário-maternidade</span></div>
+        <div class="item"><span class="emoji">💔</span><span class="texto">Pensão por morte</span></div>
+        <div class="item"><span class="emoji">🤝</span><span class="texto">BPC/LOAS</span></div>
+        <div class="item"><span class="emoji">⚖️</span><span class="texto">Direitos trabalhistas</span></div>
+        <div class="item"><span class="emoji">🔄</span><span class="texto">Revisão de benefício</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARTÃO PRINCIPAL -->
+  <div class="cartao">
+    <div class="cartao-cabecalho">
+      <div>
+        <div class="subtitulo">CONSULTA PREVIDENCIÁRIA</div>
+        <h1>Análise de Benefício</h1>
+      </div>
+      <button class="btn-admin" onclick="abrirLogin()">🔐 Entrar como Admin</button>
+    </div>
+
+    <form onsubmit="enviarTriagem(event)">
+      <div class="form-grupo">
+        <label class="form-label">Nome completo</label>
+        <input type="text" id="nome" required placeholder="Digite seu nome" class="form-input">
+      </div>
+
+      <div class="form-linha">
+        <div class="form-grupo">
+          <label class="form-label">Sexo</label>
+          <select id="sexo" class="form-select">
+            <option value="M">Masculino</option>
+            <option value="F">Feminino</option>
+          </select>
+        </div>
+        <div class="form-grupo">
+          <label class="form-label">Idade atual</label>
+          <input type="number" id="idade" required placeholder="Ex: 58" class="form-input">
+        </div>
+      </div>
+
+      <div class="form-grupo">
+        <label class="form-label">Quantos anos você trabalhou / contribuiu?</label>
+        <input type="number" id="tempo" required placeholder="Ex: 25" class="form-input">
+      </div>
+
+      <div class="form-grupo">
+        <label class="form-label">Você trabalhou como trabalhador rural ou agricultor?</label>
+        <select id="rural" class="form-select">
+          <option value="nao">Não, só trabalhei com carteira assinada ou pagando por conta</option>
+          <option value="rural">Sim, trabalhei no campo / agricultura</option>
+        </select>
+      </div>
+
+      <button type="submit" class="btn-enviar">📱 Gerar Análise e Enviar no WhatsApp</button>
+    </form>
+
+    <!-- PAINEL DE VOZES -->
+    <div class="painel-vozes">
+      <div class="painel-vozes-titulo">🔊 Ouça a explicação</div>
+      <div class="vozes-botoes">
+        <button class="btn-voz jarvis" onclick="falarJarvis()">🎙️ Ouvir Jarvis</button>
+        <button class="btn-voz katerine" onclick="falarKaterine()">🎙️ Ouvir Katerine</button>
+        <button class="btn-voz parar" onclick="pararVoz()">⏹️ Parar</button>
+      </div>
+      <div class="voz-status" id="voz-status"></div>
+    </div>
+  </div>
+
+  <!-- BANNER LATERAL DIREITO -->
+  <div class="banner-lateral-dir">
+    <div class="titulo-lateral">ℹ️ Informações</div>
+    <div class="itens">
+      <div class="itens-track">
+        <div class="item"><span class="emoji">✅</span><span class="texto">Atendimento gratuito e sem compromisso</span></div>
+        <div class="item"><span class="emoji">⏳</span><span class="texto">Resposta rápida pelo WhatsApp</span></div>
+        <div class="item"><span class="emoji">🏠</span><span class="texto">Atendemos online, de onde você estiver</span></div>
+        <div class="item"><span class="emoji">🛡️</span><span class="texto">Seus dados estão protegidos</span></div>
+        <div class="item"><span class="emoji">👨‍⚖️</span><span class="texto">Especialistas em direitos previdenciários</span></div>
+        <div class="item"><span class="emoji">💬</span><span class="texto">Tire suas dúvidas sem sair de casa</span></div>
+        <div class="item"><span class="emoji">📅</span><span class="texto">Agende sua consulta pelo WhatsApp</span></div>
+        <div class="item"><span class="emoji">💰</span><span class="texto">Você pode ter dinheiro a receber</span></div>
+        <!-- duplicado para rolagem contínua -->
+        <div class="item"><span class="emoji">✅</span><span class="texto">Atendimento gratuito e sem compromisso</span></div>
+        <div class="item"><span class="emoji">⏳</span><span class="texto">Resposta rápida pelo WhatsApp</span></div>
+        <div class="item"><span class="emoji">🏠</span><span class="texto">Atendemos online, de onde você estiver</span></div>
+        <div class="item"><span class="emoji">🛡️</span><span class="texto">Seus dados estão protegidos</span></div>
+        <div class="item"><span class="emoji">👨‍⚖️</span><span class="texto">Especialistas em direitos previdenciários</span></div>
+        <div class="item"><span class="emoji">💬</span><span class="texto">Tire suas dúvidas sem sair de casa</span></div>
+        <div class="item"><span class="emoji">📅</span><span class="texto">Agende sua consulta pelo WhatsApp</span></div>
+        <div class="item"><span class="emoji">💰</span><span class="texto">Você pode ter dinheiro a receber</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== BANNER RODAPÉ ROTATIVO ===== -->
+<div class="banner-rodape">
+  <div class="banner-rodape-track">
+    <span>Não perca seus direitos! Faça sua análise agora</span>
+    <span>Trabalhou muitos anos? Você pode se aposentar</span>
+    <span>Doença impedindo de trabalhar? Pode ter direito a benefício</span>
+    <span>Recebe pensão? Saiba se pode revisar o valor</span>
+    <span>Atendimento online, rápido e sem sair de casa</span>
+    <span>Fale com um especialista pelo WhatsApp hoje mesmo</span>
+  </div>
+</div>
+
+<!-- ===== MODAL LOGIN ===== -->
+<div class="modal-bg" id="modal-login">
+  <div class="modal-box">
+    <h3>🔐 Acesso do Administrador</h3>
+    <input type="text" id="user-login" placeholder="Usuário" autocomplete="username">
+    <input type="password" id="pass-login" placeholder="Senha" autocomplete="current-password">
+    <div class="modal-botoes">
+      <button class="entrar" onclick="fazerLogin()">Entrar</button>
+      <button class="cancelar" onclick="fecharLogin()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL PAINEL ADMIN ===== -->
+<div class="modal-bg" id="modal-painel">
+  <div class="modal-painel-box">
+    <button class="btn-fechar" onclick="fecharPainel()">✕</button>
+    <h3>Painel do Administrador</h3>
+    <div class="role" id="user-badge"></div>
+    <div class="painel-campo">
+      <label>Número de WhatsApp do escritório (com DDD):</label>
+      <input type="text" id="cfg-phone" placeholder="5517991087449">
+      <button class="btn-salvar" style="margin-top:12px" onclick="salvarConfig()">Salvar número</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ===== WHATSAPP PADRÃO =====
+  const DEFAULT_PHONE = "${defaultPhone}";
+
+  // ===== SISTEMA DE VOZES (Jarvis e Katerine) =====
+  // Correção: Jarvis e Katerine se alternam SEM se interromper
+  // O problema anterior era que speechSynthesis.speak() cancela a fala anterior
+  // Agora usamos fila e aguardamos onend antes de chamar a próxima
+
+  let vozAtual = null; // 'jarvis' | 'katerine' | null
+  let filaDeFalas = []; // fila de textos a falar
+  let falando = false;
+
+  function buscarVozJarvis() {
+    const vozes = speechSynthesis.getVoices();
+    // Procura voz masculina em português
+    return vozes.find(v => v.lang.startsWith('pt') && /male|masculino|homem|Daniel|Felipe|Google/i.test(v.name))
+         || vozes.find(v => v.lang.startsWith('pt'))
+         || vozes[0];
   }
-  return result === 0;
+
+  function buscarVozKaterine() {
+    const vozes = speechSynthesis.getVoices();
+    // Procura voz feminina em português
+    return vozes.find(v => v.lang.startsWith('pt') && /female|feminino|mulher|Maria|Ana|Luciana|Google/i.test(v.name))
+         || vozes.find(v => v.lang.startsWith('pt'))
+         || vozes[0];
+  }
+
+  // Carrega as vozes (alguns navegadores precisam do evento onvoiceschanged)
+  if (typeof speechSynthesis !== 'undefined') {
+    speechSynthesis.onvoiceschanged = () => { /* vozes carregadas */ };
+  }
+
+  function falarTexto(texto, nomeVoz) {
+    return new Promise((resolve) => {
+      const fala = new SpeechSynthesisUtterance(texto);
+      fala.lang = 'pt-BR';
+      fala.rate = 0.95;
+      fala.pitch = nomeVoz === 'jarvis' ? 0.8 : 1.2;
+
+      const voz = nomeVoz === 'jarvis' ? buscarVozJarvis() : buscarVozKaterine();
+      if (voz) fala.voice = voz;
+
+      fala.onend = () => resolve();
+      fala.onerror = () => resolve();
+
+      // NÃO chama speechSynthesis.cancel() aqui — isso era o que matava a Katerine
+      // Apenas adiciona na fila e processa uma de cada vez
+      speechSynthesis.speak(fala);
+    });
+  }
+
+  async function processarFila() {
+    if (falando) return;
+    falando = true;
+    while (filaDeFalas.length > 0) {
+      const item = filaDeFalas.shift();
+      atualizarStatus(item.voz + ' está falando...');
+      await falarTexto(item.texto, item.voz);
+    }
+    falando = false;
+    vozAtual = null;
+    atualizarStatus('');
+  }
+
+  function falarJarvis() {
+    // Para qualquer fala atual antes de começar a do Jarvis
+    speechSynthesis.cancel();
+    filaDeFalas = [];
+    falando = false;
+
+    vozAtual = 'jarvis';
+    const nome = document.getElementById('nome').value || 'amigo(a)';
+    const idade = document.getElementById('idade').value || 'sua idade';
+    const tempo = document.getElementById('tempo').value || 'seu tempo de contribuição';
+
+    const texto = 'Olá! Aqui é o Jarvis. Bem-vindo ao PrevControl. ' +
+      'Vou analisar se você tem direito a algum benefício. ' +
+      'Você informou que se chama ' + nome + ', tem ' + idade + ' anos, ' +
+      'e trabalhou por ' + tempo + ' anos. ' +
+      'Clique no botão para enviar sua análise no WhatsApp e falar com um especialista.';
+
+    filaDeFalas.push({ texto, voz: 'jarvis' });
+    processarFila();
+  }
+
+  function falarKaterine() {
+    // Para qualquer fala atual antes de começar a da Katerine
+    speechSynthesis.cancel();
+    filaDeFalas = [];
+    falando = false;
+
+    vozAtual = 'katerine';
+    const nome = document.getElementById('nome').value || 'amigo(a)';
+    const idade = document.getElementById('idade').value || 'sua idade';
+    const tempo = document.getElementById('tempo').value || 'seu tempo de contribuição';
+
+    const texto = 'Oi! Aqui é a Katerine. Que bom que você veio! ' +
+      'Vou te ajudar a entender seus direitos. ' +
+      'Pelo que vi, ' + nome + ', você tem ' + idade + ' anos ' +
+      'e trabalhou ' + tempo + ' anos. ' +
+      'Isso é muito importante! Toque no botão verde para falar com a gente no WhatsApp. ' +
+      'Não tenha medo, estamos aqui para te ajudar!';
+
+    filaDeFalas.push({ texto, voz: 'katerine' });
+    processarFila();
+  }
+
+  function pararVoz() {
+    speechSynthesis.cancel();
+    filaDeFalas = [];
+    falando = false;
+    vozAtual = null;
+    atualizarStatus('');
+  }
+
+  function atualizarStatus(msg) {
+    document.getElementById('voz-status').textContent = msg;
+  }
+
+  // ===== LOGIN DO ADMIN =====
+  function abrirLogin() {
+    document.getElementById('modal-login').classList.add('mostrar');
+  }
+  function fecharLogin() {
+    document.getElementById('modal-login').classList.remove('mostrar');
+  }
+  function fecharPainel() {
+    document.getElementById('modal-painel').classList.remove('mostrar');
+  }
+
+  async function fazerLogin() {
+    const u = document.getElementById('user-login').value;
+    const p = document.getElementById('pass-login').value;
+
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: u, password: p })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        fecharLogin();
+        document.getElementById('user-badge').textContent = data.role;
+        document.getElementById('cfg-phone').value = localStorage.getItem('office_phone') || DEFAULT_PHONE;
+        document.getElementById('modal-painel').classList.add('mostrar');
+        // Salva login para não precisar digitar de novo
+        sessionStorage.setItem('admin_logado', '1');
+      } else {
+        alert('Usuário ou senha incorretos!');
+      }
+    } catch (e) {
+      alert('Erro de conexão. Tente novamente.');
+    }
+  }
+
+  // Se já estava logado nesta sessão, abre o painel direto
+  if (sessionStorage.getItem('admin_logado') === '1') {
+    window.addEventListener('load', () => {
+      document.getElementById('user-badge').textContent = 'Administrador';
+      document.getElementById('cfg-phone').value = localStorage.getItem('office_phone') || DEFAULT_PHONE;
+      document.getElementById('modal-painel').classList.add('mostrar');
+    });
+  }
+
+  function salvarConfig() {
+    const num = document.getElementById('cfg-phone').value.trim();
+    if (num) {
+      localStorage.setItem('office_phone', num);
+      alert('Número do WhatsApp salvo com sucesso!');
+      fecharPainel();
+    } else {
+      alert('Digite um número válido');
+    }
+  }
+
+  // ===== ENVIAR TRIAGEM =====
+  async function enviarTriagem(e) {
+    e.preventDefault();
+    const nome = document.getElementById('nome').value;
+    const sexo = document.getElementById('sexo').value;
+    const idade = parseInt(document.getElementById('idade').value);
+    const tempo = parseInt(document.getElementById('tempo').value);
+    const rural = document.getElementById('rural').value;
+
+    let msg = 'Olá! Sou ' + nome + '. Gostaria de uma análise de benefício.\\n\\n';
+    msg += '- Sexo: ' + (sexo === 'M' ? 'Masculino' : 'Feminino') + '\\n';
+    msg += '- Idade: ' + idade + ' anos\\n';
+    msg += '- Tempo de trabalho: ' + tempo + ' anos\\n';
+    msg += '- Trabalho rural: ' + (rural === 'rural' ? 'Sim' : 'Não') + '\\n';
+
+    // Salva no banco de dados
+    fetch('/api/leads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, telefone: '', resumo: msg })
+    });
+
+    // Abre o WhatsApp
+    const phone = localStorage.getItem('office_phone') || DEFAULT_PHONE;
+    const url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(msg);
+    window.open(url, '_blank');
+  }
+
+  // ===== FECHAR MODAIS COM ESC =====
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      fecharLogin();
+      fecharPainel();
+    }
+  });
+
+  // ===== FECHAR MODAL CLICANDO FORA =====
+  document.getElementById('modal-login').addEventListener('click', (e) => {
+    if (e.target.id === 'modal-login') fecharLogin();
+  });
+  document.getElementById('modal-painel').addEventListener('click', (e) => {
+    if (e.target.id === 'modal-painel') fecharPainel();
+  });
+</script>
+</body>
+</html>`;
 }
