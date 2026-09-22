@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <meta
+    name="description"
+    content="PREV — triagem previdenciária e trabalhista."
+  >
+
+  <meta name="theme-color" content="#07131d">
+
+  <title>PREV — Entenda antes de decidir</title>
+
+  <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+
+  <!-- =====================================================
+       FUNDO
+       ===================================================== -->
+
+  <div class="ambient ambient-green"></div>
+  <div class="ambient ambient-purple"></div>
+  <div class="ambient ambient-blue"></div>
+
+
+  <!-- =====================================================
+       APLICAÇÃO
+       ===================================================== -->
+
+  <div id="app" class="app">
+
+
+    <!-- ===================================================
+         TOPO
+         =================================================== -->
+
+    <header class="topbar">
+
+      <a
+        href="/"
+        class="brand"
+        aria-label="PREV - início"
+      >
+
+        <div class="brand-symbol">
+
+          <span class="brand-p">P</span>
+
+          <span class="brand-orbit"></span>
+
+          <span class="brand-point"></span>
+
+        </div>
+
+        <div class="brand-text">
+
+          <strong>PREV</strong>
+
+          <span>
+            triagem previdenciária e trabalhista
+          </span>
+
+        </div>
+
+      </a>
+
+
+      <div class="top-status">
+
+        <span class="status-light"></span>
+
+        <span>
+          atendimento inicial
+        </span>
+
+      </div>
+
+    </header>
+
+
+
+    <!-- ===================================================
+         ÁREA PRINCIPAL
+         =================================================== -->
+
+    <main>
+
+
+      <!-- ================================================
+           TELA INICIAL
+           ================================================ -->
+
+      <section
+        id="homeScreen"
+        class="screen home-screen"
+      >
+
+        <div class="home-content">
+
+          <span class="eyebrow">
+            PRIMEIRO ENTENDER
+          </span>
+
+
+          <h1>
+
+            Conte o que aconteceu.
+
+            <span>
+              Nós organizamos o próximo passo.
+            </span>
+
+          </h1>
+
+
+          <p class="hero-text">
+
+            O PREV ajuda você a organizar sua situação,
+            entender o que precisa ser conferido e reunir
+            as informações importantes para continuar
+            o atendimento.
+
+          </p>
+
+
+          <div class="hero-actions">
+
+            <button
+              id="startButton"
+              class="button button-primary"
+              type="button"
+            >
+
+              <span>
+                Começar minha triagem
+              </span>
+
+              <strong>→</strong>
+
+            </button>
+
+          </div>
+
+
+          <div class="trust-list">
+
+            <span>
+              <b>✓</b>
+              Triagem inicial
+            </span>
+
+            <span>
+              <b>✓</b>
+              Você pode dizer "não sei"
+            </span>
+
+            <span>
+              <b>✓</b>
+              Documentos são opcionais
+            </span>
+
+          </div>
+
+        </div>
+
+
+
+        <!-- ==============================================
+             KATERINA
+             ============================================== -->
+
+        <aside
+          class="katerina-stage"
+          aria-label="Katerina, assistente do PREV"
+        >
+
+          <div class="katerina-aura"></div>
+
+
+          <div
+            id="katerina"
+            class="katerina"
+            role="img"
+            aria-label="Katerina"
+          >
+
+            <div class="katerina-head">
+
+              <div class="katerina-eye left"></div>
+
+              <div class="katerina-eye right"></div>
+
+              <div class="katerina-visor"></div>
+
+            </div>
+
+
+            <div class="katerina-neck"></div>
+
+
+            <div class="katerina-body">
+
+              <div class="katerina-core"></div>
+
+              <div class="katerina-arm left"></div>
+
+              <div class="katerina-arm right"></div>
+
+            </div>
+
+          </div>
+
+
+          <div class="katerina-message">
+
+            <div class="message-title">
+              Katerina
+            </div>
+
+            <div class="message-text">
+
+              Eu não decido por você.
+              Eu ajudo você a entender
+              antes de decidir.
+
+            </div>
+
+          </div>
+
+        </aside>
+
+      </section>
+
+
+
+      <!-- ================================================
+           TRIAGEM
+           ================================================ -->
+
+      <section
+        id="triageScreen"
+        class="screen triage-screen hidden"
+      >
+
+        <div class="triage-header">
+
+          <div>
+
+            <span class="eyebrow">
+              TRIAGEM PREV
+            </span>
+
+            <h2 id="triageTitle">
+              Vamos começar.
+            </h2>
+
+          </div>
+
+
+          <div
+            id="progressText"
+            class="progress-text"
+          >
+            1 de 3
+          </div>
+
+        </div>
+
+
+        <div class="progress-bar">
+
+          <div
+            id="progressBar"
+            class="progress-fill"
+          ></div>
+
+        </div>
+
+
+        <div
+          id="questionArea"
+          class="question-area"
+        >
+        </div>
+
+
+        <div class="triage-actions">
+
+          <button
+            id="backButton"
+            class="button button-secondary"
+            type="button"
+          >
+            Voltar
+          </button>
+
+
+          <button
+            id="nextButton"
+            class="button button-primary"
+            type="button"
+          >
+            Continuar
+            <strong>→</strong>
+          </button>
+
+        </div>
+
+      </section>
+
+
+
+      <!-- ================================================
+           RESULTADO
+           ================================================ -->
+
+      <section
+        id="resultScreen"
+        class="screen result-screen hidden"
+      >
+
+        <span class="eyebrow">
+          PRÓXIMO PASSO
+        </span>
+
+
+        <h2>
+          Sua triagem foi organizada.
+        </h2>
+
+
+        <p class="result-intro">
+
+          O PREV não dá uma decisão jurídica automática.
+          Ele organiza as informações para indicar o que
+          precisa ser conferido na próxima etapa.
+
+        </p>
+
+
+        <div
+          id="resultContent"
+          class="result-content"
+        >
+        </div>
+
+
+        <div class="result-actions">
+
+          <button
+            id="newTriageButton"
+            class="button button-primary"
+            type="button"
+          >
+            Fazer nova triagem
+          </button>
+
+        </div>
+
+      </section>
+
+    </main>
+
+
+
+    <!-- ===================================================
+         RODAPÉ
+         =================================================== -->
+
+    <footer class="footer">
+
+      <span>
+        PREV
+      </span>
+
+      <span class="footer-separator">
+        •
+      </span>
+
+      <span>
+        Informação organizada antes da análise profissional.
+      </span>
+
+    </footer>
+
+  </div>
+
+
+  <!-- =====================================================
+       SCRIPTS
+       ===================================================== -->
+
+  <script src="/katerina.js"></script>
+  <script src="/app.js"></script>
+
+</body>
+</html>
