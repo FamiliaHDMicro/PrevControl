@@ -1,1443 +1,1748 @@
 /* =========================================================
-   PREV — INDEX.JS
-   Cloudflare Worker
-   Triagem Previdenciária + Trabalhista
+   PREV — IDENTIDADE VISUAL
+   Verde • Dourado • Azul • Roxo • Branco
    ========================================================= */
 
-import {
-  getAllSectors,
-  getAllBenefits,
-  getBenefitsBySector,
-  runTriagem,
-  RULE_VERSION
-} from "./rules.js";
+:root {
+
+  --prev-bg: #061018;
+  --prev-bg-soft: #091923;
+  --prev-panel: #0c1d29;
+  --prev-panel-2: #102838;
+
+  --prev-green: #18c878;
+  --prev-green-dark: #0b9256;
+  --prev-green-light: #54e5a0;
+
+  --prev-gold: #e1b33b;
+  --prev-gold-light: #f3d36d;
+
+  --prev-blue: #2186d4;
+  --prev-blue-light: #55b8ff;
+
+  --prev-purple: #8058d8;
+  --prev-purple-light: #aa8bed;
+
+  --prev-white: #f7fafc;
+  --prev-white-soft: #dce6ec;
+
+  --prev-text: #f3f7fa;
+  --prev-muted: #9dafbb;
+
+  --prev-line: rgba(255,255,255,.09);
+
+  --prev-radius-sm: 10px;
+  --prev-radius: 16px;
+  --prev-radius-lg: 25px;
+
+  --prev-shadow:
+    0 25px 70px rgba(0,0,0,.38);
+
+  --prev-transition:
+    180ms ease;
+}
 
 
 /* =========================================================
-   CONFIGURAÇÃO
+   RESET
    ========================================================= */
 
-const ALLOWED_ORIGIN = "*";
+* {
+  box-sizing: border-box;
+}
 
-const JSON_HEADERS = {
-  "Content-Type": "application/json; charset=utf-8",
-  "Cache-Control": "no-store"
-};
+html {
+  min-height: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+
+  background:
+    radial-gradient(
+      circle at 10% 10%,
+      rgba(24,200,120,.09),
+      transparent 32%
+    ),
+
+    radial-gradient(
+      circle at 90% 85%,
+      rgba(128,88,216,.09),
+      transparent 30%
+    ),
+
+    linear-gradient(
+      135deg,
+      #050c12 0%,
+      var(--prev-bg) 50%,
+      #07121b 100%
+    );
+
+  color: var(--prev-text);
+
+  font-family:
+    Inter,
+    "Segoe UI",
+    Roboto,
+    Arial,
+    sans-serif;
+
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
 
 
 /* =========================================================
-   RESPOSTAS
+   AMBIENTE
    ========================================================= */
 
-function json(data, status = 200, extraHeaders = {}) {
+.ambient {
+  position: fixed;
 
-  return new Response(
-    JSON.stringify(data),
-    {
-      status,
+  width: 320px;
+  height: 320px;
 
-      headers: {
-        ...JSON_HEADERS,
-        ...extraHeaders
-      }
-    }
+  border-radius: 50%;
+
+  pointer-events: none;
+
+  filter: blur(100px);
+
+  opacity: .13;
+
+  z-index: 0;
+}
+
+.ambient-green {
+  top: -150px;
+  left: -120px;
+
+  background: var(--prev-green);
+}
+
+.ambient-purple {
+  right: -140px;
+  bottom: -140px;
+
+  background: var(--prev-purple);
+}
+
+.ambient-blue {
+  top: 38%;
+  right: 20%;
+
+  width: 180px;
+  height: 180px;
+
+  background: var(--prev-blue);
+
+  opacity: .05;
+}
+
+
+/* =========================================================
+   APLICAÇÃO
+   ========================================================= */
+
+.app {
+  position: relative;
+
+  z-index: 1;
+
+  width: min(
+    1180px,
+    calc(100% - 36px)
   );
+
+  min-height: 100vh;
+
+  margin: 0 auto;
 }
 
 
-function errorResponse(
-  message,
-  status = 400
-) {
+/* =========================================================
+   TOPO
+   ========================================================= */
 
-  return json(
-    {
-      ok: false,
-      error: message
-    },
-    status
+.topbar {
+
+  min-height: 88px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 20px;
+
+  border-bottom:
+    1px solid var(--prev-line);
+}
+
+
+/* =========================================================
+   MARCA
+   ========================================================= */
+
+.brand {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 13px;
+
+  cursor: pointer;
+}
+
+.brand-symbol {
+
+  position: relative;
+
+  width: 48px;
+  height: 48px;
+
+  display: grid;
+
+  place-items: center;
+
+  border:
+    1px solid rgba(225,179,59,.7);
+
+  border-radius: 14px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #102535,
+      #08151e
+    );
+
+  box-shadow:
+    0 0 25px rgba(225,179,59,.08);
+
+  overflow: hidden;
+}
+
+.brand-p {
+
+  position: relative;
+
+  z-index: 3;
+
+  color: var(--prev-white);
+
+  font-size: 27px;
+
+  font-weight: 900;
+
+  line-height: 1;
+}
+
+.brand-orbit {
+
+  position: absolute;
+
+  width: 31px;
+  height: 31px;
+
+  border:
+    2px solid var(--prev-green);
+
+  border-left-color: transparent;
+
+  border-radius: 50%;
+
+  transform:
+    rotate(-28deg);
+
+  opacity: .95;
+}
+
+.brand-point {
+
+  position: absolute;
+
+  width: 6px;
+  height: 6px;
+
+  right: 8px;
+  top: 8px;
+
+  border-radius: 50%;
+
+  background: var(--prev-gold);
+
+  box-shadow:
+    0 0 10px rgba(225,179,59,.65);
+}
+
+
+.brand-text {
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 3px;
+}
+
+.brand-text strong {
+
+  font-size: 25px;
+
+  line-height: 1;
+
+  letter-spacing: 2px;
+
+  font-weight: 900;
+}
+
+.brand-text span {
+
+  color: var(--prev-muted);
+
+  font-size: 10px;
+
+  text-transform: uppercase;
+
+  letter-spacing: .9px;
+}
+
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+.top-status {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  color: var(--prev-muted);
+
+  font-size: 11px;
+
+  text-transform: uppercase;
+
+  letter-spacing: .8px;
+}
+
+.status-light {
+
+  width: 8px;
+  height: 8px;
+
+  border-radius: 50%;
+
+  background: var(--prev-green);
+
+  box-shadow:
+    0 0 12px rgba(24,200,120,.7);
+}
+
+
+/* =========================================================
+   TELAS
+   ========================================================= */
+
+.screen {
+
+  animation:
+    prevScreenIn
+    .35s
+    ease
+    both;
+}
+
+.hidden {
+  display: none !important;
+}
+
+@keyframes prevScreenIn {
+
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* =========================================================
+   HOME
+   ========================================================= */
+
+.home-screen {
+
+  min-height: 650px;
+
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1.1fr)
+    minmax(360px, .9fr);
+
+  align-items: center;
+
+  gap: 70px;
+}
+
+
+/* =========================================================
+   TEXTO PRINCIPAL
+   ========================================================= */
+
+.home-content {
+
+  padding:
+    55px
+    0;
+}
+
+.eyebrow {
+
+  display: inline-block;
+
+  color: var(--prev-gold);
+
+  font-size: 11px;
+
+  font-weight: 900;
+
+  letter-spacing: 2.4px;
+
+  text-transform: uppercase;
+}
+
+.home-content h1 {
+
+  max-width: 720px;
+
+  margin:
+    17px
+    0
+    25px;
+
+  font-size:
+    clamp(
+      40px,
+      5.2vw,
+      68px
+    );
+
+  line-height: 1.02;
+
+  letter-spacing: -2.8px;
+
+  font-weight: 800;
+}
+
+.home-content h1 span {
+
+  display: block;
+
+  margin-top: 7px;
+
+  color: var(--prev-green);
+}
+
+.hero-text {
+
+  max-width: 650px;
+
+  margin: 0;
+
+  color: var(--prev-muted);
+
+  font-size: 17px;
+
+  line-height: 1.75;
+}
+
+
+/* =========================================================
+   BOTÕES
+   ========================================================= */
+
+.hero-actions {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+
+  margin-top: 32px;
+}
+
+.button {
+
+  border: 0;
+
+  min-height: 48px;
+
+  padding:
+    13px
+    19px;
+
+  border-radius:
+    var(--prev-radius-sm);
+
+  display: inline-flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 12px;
+
+  cursor: pointer;
+
+  font-size: 14px;
+
+  font-weight: 800;
+
+  transition:
+    transform var(--prev-transition),
+    box-shadow var(--prev-transition),
+    background var(--prev-transition),
+    border-color var(--prev-transition);
+}
+
+.button:hover {
+
+  transform:
+    translateY(-2px);
+}
+
+.button:active {
+
+  transform:
+    translateY(0);
+}
+
+.button:focus-visible {
+
+  outline:
+    2px solid var(--prev-gold);
+
+  outline-offset: 4px;
+}
+
+.button-primary {
+
+  color: white;
+
+  background:
+    linear-gradient(
+      135deg,
+      var(--prev-green),
+      var(--prev-green-dark)
+    );
+
+  box-shadow:
+    0 12px 32px rgba(24,200,120,.18);
+}
+
+.button-primary:hover {
+
+  box-shadow:
+    0 15px 38px rgba(24,200,120,.27);
+}
+
+.button-primary strong {
+
+  color:
+    var(--prev-gold-light);
+
+  font-size: 18px;
+}
+
+.button-secondary {
+
+  color: var(--prev-white);
+
+  background:
+    rgba(255,255,255,.025);
+
+  border:
+    1px solid var(--prev-line);
+}
+
+.button-secondary:hover {
+
+  border-color:
+    rgba(225,179,59,.45);
+
+  background:
+    rgba(255,255,255,.05);
+}
+
+
+/* =========================================================
+   CONFIANÇA
+   ========================================================= */
+
+.trust-list {
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 9px;
+
+  margin-top: 22px;
+}
+
+.trust-list span {
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 6px;
+
+  padding:
+    7px
+    10px;
+
+  border:
+    1px solid var(--prev-line);
+
+  border-radius: 999px;
+
+  background:
+    rgba(255,255,255,.018);
+
+  color:
+    var(--prev-muted);
+
+  font-size: 10px;
+}
+
+.trust-list b {
+
+  color: var(--prev-green);
+
+  font-size: 12px;
+}
+
+
+/* =========================================================
+   PALCO DA KATERINA
+   ========================================================= */
+
+.katerina-stage {
+
+  position: relative;
+
+  min-height: 455px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  padding: 35px;
+
+  border:
+    1px solid var(--prev-line);
+
+  border-radius:
+    var(--prev-radius-lg);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(16,40,56,.92),
+      rgba(7,18,27,.94)
+    );
+
+  box-shadow:
+    var(--prev-shadow);
+
+  overflow: hidden;
+}
+
+.katerina-stage::before {
+
+  content: "";
+
+  position: absolute;
+
+  inset: 0;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(33,134,212,.06),
+      transparent 40%,
+      rgba(128,88,216,.07)
+    );
+
+  pointer-events: none;
+}
+
+
+/* =========================================================
+   AURA
+   ========================================================= */
+
+.katerina-aura {
+
+  position: absolute;
+
+  width: 270px;
+  height: 270px;
+
+  border-radius: 50%;
+
+  background:
+    radial-gradient(
+      circle,
+      rgba(33,134,212,.23),
+      rgba(128,88,216,.09),
+      transparent 70%
+    );
+
+  filter:
+    blur(12px);
+
+  animation:
+    katerinaAura
+    4s
+    ease-in-out
+    infinite;
+}
+
+@keyframes katerinaAura {
+
+  0%,
+  100% {
+    transform:
+      scale(.94);
+
+    opacity: .75;
+  }
+
+  50% {
+    transform:
+      scale(1.06);
+
+    opacity: 1;
+  }
+}
+
+
+/* =========================================================
+   KATERINA — CORPO
+   ========================================================= */
+
+.katerina {
+
+  position: relative;
+
+  z-index: 2;
+
+  width: 190px;
+
+  height: 260px;
+
+  cursor: pointer;
+
+  transition:
+    transform .25s ease;
+}
+
+.katerina:hover {
+
+  transform:
+    translateY(-4px);
+}
+
+
+/* =========================================================
+   CABEÇA
+   ========================================================= */
+
+.katerina-head {
+
+  position: relative;
+
+  width: 148px;
+  height: 112px;
+
+  margin:
+    0 auto;
+
+  border:
+    3px solid var(--prev-blue);
+
+  border-radius:
+    39px
+    39px
+    48px
+    48px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #eef5f8,
+      #b9cbd3
+    );
+
+  box-shadow:
+    0 0 35px rgba(33,134,212,.26);
+
+  overflow: hidden;
+}
+
+
+/* =========================================================
+   OLHOS
+   ========================================================= */
+
+.katerina-eye {
+
+  position: absolute;
+
+  top: 42px;
+
+  width: 14px;
+  height: 22px;
+
+  border-radius: 50%;
+
+  background:
+    #102b3b;
+
+  box-shadow:
+    0 0 0 3px rgba(33,134,212,.08);
+
+  animation:
+    katerinaBlink
+    5s
+    infinite;
+}
+
+.katerina-eye.left {
+  left: 39px;
+}
+
+.katerina-eye.right {
+  right: 39px;
+}
+
+@keyframes katerinaBlink {
+
+  0%,
+  45%,
+  49%,
+  100% {
+    transform:
+      scaleY(1);
+  }
+
+  47% {
+    transform:
+      scaleY(.08);
+  }
+}
+
+
+/* =========================================================
+   VISOR
+   ========================================================= */
+
+.katerina-visor {
+
+  position: absolute;
+
+  left: 47px;
+  right: 47px;
+
+  bottom: 15px;
+
+  height: 5px;
+
+  border-radius: 999px;
+
+  background:
+    linear-gradient(
+      90deg,
+      var(--prev-purple),
+      var(--prev-blue)
+    );
+
+  box-shadow:
+    0 0 12px rgba(128,88,216,.55);
+}
+
+
+/* =========================================================
+   PESCOÇO
+   ========================================================= */
+
+.katerina-neck {
+
+  position: relative;
+
+  z-index: 3;
+
+  width: 34px;
+  height: 22px;
+
+  margin:
+    -2px auto
+    0;
+
+  border-left:
+    3px solid var(--prev-blue);
+
+  border-right:
+    3px solid var(--prev-blue);
+
+  background:
+    #112b3a;
+}
+
+
+/* =========================================================
+   CORPO
+   ========================================================= */
+
+.katerina-body {
+
+  position: relative;
+
+  width: 122px;
+  height: 112px;
+
+  margin:
+    -2px auto
+    0;
+
+  border:
+    3px solid var(--prev-green);
+
+  border-radius:
+    27px
+    27px
+    35px
+    35px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #123044,
+      #091a27
+    );
+
+  box-shadow:
+    0 12px 30px rgba(0,0,0,.25);
+}
+
+
+/* =========================================================
+   NÚCLEO
+   ========================================================= */
+
+.katerina-core {
+
+  position: absolute;
+
+  width: 32px;
+  height: 32px;
+
+  left: 42px;
+  top: 32px;
+
+  border:
+    4px solid var(--prev-gold);
+
+  border-radius: 50%;
+
+  box-shadow:
+    0 0 20px rgba(225,179,59,.35);
+
+  animation:
+    corePulse
+    2.8s
+    ease-in-out
+    infinite;
+}
+
+@keyframes corePulse {
+
+  0%,
+  100% {
+    transform:
+      scale(.92);
+
+    box-shadow:
+      0 0 15px rgba(225,179,59,.25);
+  }
+
+  50% {
+    transform:
+      scale(1.06);
+
+    box-shadow:
+      0 0 25px rgba(225,179,59,.48);
+  }
+}
+
+
+/* =========================================================
+   BRAÇOS
+   ========================================================= */
+
+.katerina-arm {
+
+  position: absolute;
+
+  top: 38px;
+
+  width: 52px;
+  height: 13px;
+
+  border-radius: 999px;
+
+  background:
+    linear-gradient(
+      90deg,
+      var(--prev-green),
+      var(--prev-blue)
+    );
+}
+
+.katerina-arm.left {
+
+  left: -42px;
+
+  transform:
+    rotate(27deg);
+}
+
+.katerina-arm.right {
+
+  right: -42px;
+
+  transform:
+    rotate(-27deg);
+}
+
+
+/* =========================================================
+   MENSAGEM KATERINA
+   ========================================================= */
+
+.katerina-message {
+
+  position: relative;
+
+  z-index: 4;
+
+  width: min(
+    390px,
+    100%
   );
+
+  margin-top: 26px;
+
+  padding:
+    15px
+    17px;
+
+  border:
+    1px solid var(--prev-line);
+
+  border-radius:
+    var(--prev-radius);
+
+  background:
+    rgba(5,14,21,.82);
+
+  backdrop-filter:
+    blur(8px);
+}
+
+.message-title {
+
+  margin-bottom: 5px;
+
+  color:
+    var(--prev-gold-light);
+
+  font-size: 13px;
+
+  font-weight: 900;
+}
+
+.message-text {
+
+  color:
+    var(--prev-muted);
+
+  font-size: 12px;
+
+  line-height: 1.55;
 }
 
 
 /* =========================================================
-   CORS
+   TRIAGEM
    ========================================================= */
 
-function corsHeaders(request) {
-
-  const origin =
-    request.headers.get("Origin");
-
-  /*
-   * Durante desenvolvimento mantemos compatibilidade
-   * com acesso direto/local.
-   *
-   * Em produção, ALLOWED_ORIGIN pode ser alterado
-   * para o domínio oficial.
-   */
-
-  const allowOrigin =
-    ALLOWED_ORIGIN === "*"
-      ? "*"
-      : (
-          origin === ALLOWED_ORIGIN
-            ? origin
-            : ALLOWED_ORIGIN
-        );
-
-  return {
-    "Access-Control-Allow-Origin":
-      allowOrigin,
-
-    "Access-Control-Allow-Methods":
-      "GET, POST, OPTIONS",
-
-    "Access-Control-Allow-Headers":
-      "Content-Type, Authorization",
-
-    "Access-Control-Max-Age":
-      "86400"
-  };
-}
-
-
-/* =========================================================
-   REQUEST JSON
-   ========================================================= */
-
-async function readJson(request) {
-
-  const contentType =
-    request.headers.get("Content-Type") || "";
-
-  if (
-    !contentType
-      .toLowerCase()
-      .includes("application/json")
-  ) {
-    throw new Error(
-      "A requisição precisa usar application/json."
-    );
-  }
-
-  try {
-
-    return await request.json();
-
-  } catch {
-
-    throw new Error(
-      "JSON inválido."
-    );
-  }
-}
-
-
-/* =========================================================
-   NORMALIZAÇÃO
-   ========================================================= */
-
-function clean(value) {
-
-  if (
-    value === undefined ||
-    value === null
-  ) {
-    return "";
-  }
-
-  return String(value).trim();
-}
-
-
-function limitText(
-  value,
-  max
-) {
-
-  const text =
-    clean(value);
-
-  return text.slice(
-    0,
-    max
-  );
-}
-
-
-function normalizeAnswers(
-  answers
-) {
-
-  if (
-    !answers ||
-    typeof answers !== "object" ||
-    Array.isArray(answers)
-  ) {
-    return {};
-  }
-
-  const result = {};
-
-  for (
-    const [key, value]
-    of Object.entries(answers)
-  ) {
-
-    const safeKey =
-      String(key)
-        .slice(0, 100);
-
-    if (
-      typeof value === "object" &&
-      value !== null
-    ) {
-
-      result[safeKey] =
-        JSON.stringify(value)
-          .slice(0, 5000);
-
-    } else {
-
-      result[safeKey] =
-        clean(value)
-          .slice(0, 5000);
-    }
-  }
-
-  return result;
-}
-
-
-/* =========================================================
-   TICKET
-   ========================================================= */
-
-function generateTicket() {
-
-  const now =
-    new Date();
-
-  const year =
-    now.getUTCFullYear();
-
-  const random =
-    crypto.randomUUID()
-      .replaceAll("-", "")
-      .slice(0, 8)
-      .toUpperCase();
-
-  return `PC-${year}-${random}`;
-}
-
-
-/* =========================================================
-   ADMIN TOKEN
-   =========================================================
-
-   IMPORTANTE:
-
-   Nunca colocar o token no JavaScript público.
-
-   Criar no Cloudflare:
-
-   ADMIN_TOKEN
-
-   O painel administrativo deverá enviar:
-
-   Authorization: Bearer SEU_TOKEN
-
-   ========================================================= */
-
-function isAdmin(request, env) {
-
-  const configuredToken =
-    clean(env.ADMIN_TOKEN);
-
-  if (!configuredToken) {
-    return false;
-  }
-
-  const authorization =
-    request.headers.get(
-      "Authorization"
-    ) || "";
-
-  if (
-    !authorization.startsWith(
-      "Bearer "
-    )
-  ) {
-    return false;
-  }
-
-  const suppliedToken =
-    authorization
-      .slice(7)
-      .trim();
-
-  if (!suppliedToken) {
-    return false;
-  }
-
-  return suppliedToken === configuredToken;
-}
-
-
-/* =========================================================
-   ROTA ADMINISTRATIVA
-   ========================================================= */
-
-function requireAdmin(
-  request,
-  env
-) {
-
-  if (
-    !isAdmin(
-      request,
-      env
-    )
-  ) {
-
-    return errorResponse(
-      "Não autorizado.",
-      401
-    );
-  }
-
-  return null;
-}
-
-
-/* =========================================================
-   HEALTH
-   ========================================================= */
-
-async function handleHealth(
-  env
-) {
-
-  let database =
-    false;
-
-  try {
-
-    if (env.DB) {
-
-      await env.DB
-        .prepare(
-          "SELECT 1 AS ok"
-        )
-        .first();
-
-      database = true;
-    }
-
-  } catch {
-
-    database = false;
-  }
-
-  return json({
-    ok: true,
-    service: "PREV",
-    version: RULE_VERSION,
-    database
-  });
-}
-
-
-/* =========================================================
-   GET /api/sectors
-   ========================================================= */
-
-async function handleSectors() {
-
-  return json({
-    ok: true,
-    sectors:
-      getAllSectors()
-  });
-}
-
-
-/* =========================================================
-   GET /api/benefits
-   ========================================================= */
-
-async function handleBenefits(
-  url
-) {
-
-  const sector =
-    clean(
-      url.searchParams.get(
-        "sector"
-      )
+.triage-screen {
+
+  width:
+    min(
+      850px,
+      100%
     );
 
+  margin:
+    70px auto
+    80px;
 
-  if (sector) {
+  padding:
+    32px;
 
-    return json({
-      ok: true,
+  border:
+    1px solid var(--prev-line);
 
-      sector,
+  border-radius:
+    var(--prev-radius-lg);
 
-      benefits:
-        getBenefitsBySector(
-          sector
-        )
-    });
-  }
+  background:
+    linear-gradient(
+      145deg,
+      rgba(13,31,43,.96),
+      rgba(7,18,27,.96)
+    );
 
+  box-shadow:
+    var(--prev-shadow);
+}
 
-  return json({
-    ok: true,
+.triage-header {
 
-    benefits:
-      getAllBenefits()
-  });
+  display: flex;
+
+  align-items: flex-start;
+
+  justify-content: space-between;
+
+  gap: 20px;
+}
+
+.triage-header h2 {
+
+  margin:
+    9px 0
+    24px;
+
+  font-size: 30px;
+
+  line-height: 1.15;
+
+  letter-spacing: -.7px;
+}
+
+.progress-text {
+
+  color:
+    var(--prev-gold);
+
+  font-size: 12px;
+
+  font-weight: 900;
+
+  white-space: nowrap;
 }
 
 
 /* =========================================================
-   POST /api/triagem
+   BARRA DE PROGRESSO
    ========================================================= */
 
-async function handleTriagem(
-  request,
-  env
-) {
+.progress-bar {
 
-  let body;
+  width: 100%;
 
-  try {
+  height: 5px;
 
-    body =
-      await readJson(
-        request
+  margin-bottom: 30px;
+
+  overflow: hidden;
+
+  border-radius: 999px;
+
+  background:
+    rgba(255,255,255,.07);
+}
+
+.progress-fill {
+
+  width: 33.33%;
+
+  height: 100%;
+
+  border-radius: inherit;
+
+  background:
+    linear-gradient(
+      90deg,
+      var(--prev-green),
+      var(--prev-gold)
+    );
+
+  transition:
+    width .3s ease;
+}
+
+
+/* =========================================================
+   ÁREA DAS PERGUNTAS
+   ========================================================= */
+
+.question-area {
+
+  min-height: 270px;
+}
+
+
+/* =========================================================
+   OPÇÕES
+   ========================================================= */
+
+.choice {
+
+  width: 100%;
+
+  display: block;
+
+  padding:
+    17px
+    18px;
+
+  margin:
+    10px
+    0;
+
+  border:
+    1px solid var(--prev-line);
+
+  border-radius:
+    var(--prev-radius-sm);
+
+  color:
+    var(--prev-white);
+
+  background:
+    rgba(255,255,255,.018);
+
+  text-align: left;
+
+  cursor: pointer;
+
+  transition:
+    border-color var(--prev-transition),
+    background var(--prev-transition),
+    transform var(--prev-transition);
+}
+
+.choice:hover {
+
+  transform:
+    translateX(2px);
+
+  border-color:
+    rgba(33,134,212,.55);
+
+  background:
+    rgba(33,134,212,.06);
+}
+
+.choice.selected {
+
+  border-color:
+    var(--prev-green);
+
+  background:
+    rgba(24,200,120,.08);
+
+  box-shadow:
+    inset 3px 0 0 var(--prev-green);
+}
+
+.choice b {
+
+  display: block;
+
+  color:
+    var(--prev-white);
+
+  font-size: 14px;
+}
+
+.choice small {
+
+  display: block;
+
+  margin-top: 6px;
+
+  color:
+    var(--prev-muted);
+
+  font-size: 12px;
+
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   AÇÕES DA TRIAGEM
+   ========================================================= */
+
+.triage-actions {
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 15px;
+
+  margin-top: 25px;
+
+  padding-top: 22px;
+
+  border-top:
+    1px solid var(--prev-line);
+}
+
+
+/* =========================================================
+   RESULTADO
+   ========================================================= */
+
+.result-screen {
+
+  width:
+    min(
+      900px,
+      100%
+    );
+
+  margin:
+    70px auto;
+
+  padding:
+    40px 0
+    80px;
+}
+
+.result-screen h2 {
+
+  margin:
+    10px 0
+    15px;
+
+  font-size:
+    clamp(32px,4vw,48px);
+
+  letter-spacing:
+    -1.5px;
+}
+
+.result-intro {
+
+  max-width: 720px;
+
+  color:
+    var(--prev-muted);
+
+  font-size: 15px;
+
+  line-height: 1.7;
+}
+
+.result-content {
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(3,1fr);
+
+  gap: 12px;
+
+  margin:
+    32px
+    0;
+}
+
+.result-card {
+
+  position: relative;
+
+  min-height: 170px;
+
+  padding: 20px;
+
+  border:
+    1px solid var(--prev-line);
+
+  border-radius:
+    var(--prev-radius);
+
+  background:
+    rgba(255,255,255,.018);
+}
+
+.result-card::before {
+
+  content: "";
+
+  display: block;
+
+  width: 9px;
+  height: 9px;
+
+  margin-bottom: 18px;
+
+  border-radius: 50%;
+
+  background:
+    var(--prev-green);
+
+  box-shadow:
+    0 0 12px rgba(24,200,120,.4);
+}
+
+.result-card:nth-child(2)::before {
+  background: var(--prev-gold);
+}
+
+.result-card:nth-child(3)::before {
+  background: var(--prev-purple);
+}
+
+.result-card strong {
+
+  display: block;
+
+  margin-bottom: 8px;
+
+  color:
+    var(--prev-white);
+
+  font-size: 14px;
+}
+
+.result-card p {
+
+  margin: 0;
+
+  color:
+    var(--prev-muted);
+
+  font-size: 12px;
+
+  line-height: 1.6;
+}
+
+
+/* =========================================================
+   RODAPÉ
+   ========================================================= */
+
+.footer {
+
+  display: flex;
+
+  justify-content: center;
+
+  align-items: center;
+
+  flex-wrap: wrap;
+
+  gap: 8px;
+
+  padding:
+    30px
+    0
+    45px;
+
+  color:
+    #718591;
+
+  font-size: 10px;
+
+  text-align: center;
+}
+
+.footer > span:first-child {
+
+  color:
+    var(--prev-gold);
+
+  font-weight: 900;
+
+  letter-spacing: 1px;
+}
+
+.footer-separator {
+
+  color:
+    var(--prev-green);
+}
+
+
+/* =========================================================
+   RESPONSIVIDADE
+   ========================================================= */
+
+@media (max-width: 900px) {
+
+  .home-screen {
+
+    grid-template-columns:
+      1fr;
+
+    gap: 25px;
+
+    padding:
+      35px
+      0
+      60px;
+  }
+
+  .home-content {
+
+    padding:
+      35px
+      0
+      0;
+  }
+
+  .katerina-stage {
+
+    min-height: 400px;
+
+    width: 100%;
+  }
+
+  .result-content {
+
+    grid-template-columns:
+      1fr;
+  }
+}
+
+
+@media (max-width: 620px) {
+
+  .app {
+
+    width:
+      min(
+        100% - 22px,
+        1180px
       );
-
-  } catch (error) {
-
-    return errorResponse(
-      error.message,
-      400
-    );
   }
 
+  .topbar {
 
-  const name =
-    limitText(
-      body.name,
-      120
-    );
-
-
-  const phone =
-    limitText(
-      body.phone,
-      40
-    );
-
-
-  const sector =
-    limitText(
-      body.sector,
-      80
-    ) ||
-    "nao_classificado";
-
-
-  const benefitType =
-    limitText(
-      body.benefit_type,
-      100
-    ) ||
-    "triagem";
-
-
-  const observation =
-    limitText(
-      body.observation,
-      2000
-    );
-
-
-  const answers =
-    normalizeAnswers(
-      body.answers
-    );
-
-
-  const consentDocuments =
-    Boolean(
-      body.consent_documents
-    );
-
-
-  if (!name) {
-
-    return errorResponse(
-      "Nome é obrigatório.",
-      422
-    );
+    min-height: 74px;
   }
 
+  .brand-text span {
 
-  if (!phone) {
-
-    return errorResponse(
-      "Telefone é obrigatório.",
-      422
-    );
+    display: none;
   }
 
+  .brand-text strong {
 
-  /*
-   * Não aceitar credenciais sensíveis.
-   *
-   * O PREV nunca deve solicitar:
-   * - senha gov.br
-   * - senha bancária
-   * - senha de e-mail
-   * - códigos de autenticação
-   */
-
-  const forbiddenPatterns = [
-    /senha\s+gov/i,
-    /senha\s+banco/i,
-    /senha\s+bank/i,
-    /senha\s+email/i,
-    /senha\s+e-mail/i,
-    /codigo\s+de\s+autenticacao/i,
-    /código\s+de\s+autenticação/i,
-    /token\s+de\s+acesso/i
-  ];
-
-
-  const combinedText =
-    JSON.stringify({
-      name,
-      phone,
-      observation,
-      answers
-    });
-
-
-  const containsCredential =
-    forbiddenPatterns.some(
-      pattern =>
-        pattern.test(
-          combinedText
-        )
-    );
-
-
-  if (containsCredential) {
-
-    return errorResponse(
-      "Não envie senhas, códigos de autenticação ou credenciais. A triagem não precisa dessas informações.",
-      422
-    );
+    font-size: 22px;
   }
 
+  .brand-symbol {
 
-  /*
-   * Executa o motor de regras.
-   */
-
-  const triagem =
-    runTriagem(
-      benefitType,
-      answers
-    );
-
-
-  /*
-   * Gera protocolo independente.
-   */
-
-  const ticket =
-    generateTicket();
-
-
-  /*
-   * Timestamp em UTC.
-   */
-
-  const createdAt =
-    new Date()
-      .toISOString();
-
-
-  /*
-   * Se o D1 não estiver disponível,
-   * devolvemos o resultado sem quebrar
-   * a experiência do usuário.
-   *
-   * Em produção, o banco deverá estar
-   * configurado.
-   */
-
-  if (!env.DB) {
-
-    return json({
-      ok: true,
-
-      ticket,
-
-      saved: false,
-
-      warning:
-        "Banco de dados não configurado.",
-
-      triagem: {
-        ...triagem,
-
-        ticket,
-
-        created_at:
-          createdAt,
-
-        consent_documents:
-          consentDocuments
-      }
-    });
+    width: 42px;
+    height: 42px;
   }
 
+  .top-status {
 
-  try {
+    display: none;
+  }
 
-    /*
-     * A tabela leads da versão antiga
-     * ainda é utilizada como estrutura
-     * compatível nesta primeira fase.
-     *
-     * answers_json guarda as respostas
-     * organizadas.
-     */
+  .home-content h1 {
 
-    await env.DB
-      .prepare(`
-        INSERT INTO leads (
-          name,
-          phone,
-          benefit_type,
-          answers_json,
-          classification,
-          rationale,
-          status,
-          notes,
-          created_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `)
-      .bind(
+    font-size: 41px;
 
-        name,
+    letter-spacing:
+      -1.8px;
+  }
 
-        phone,
+  .hero-text {
 
-        benefitType,
+    font-size: 15px;
+  }
 
-        JSON.stringify({
-          sector,
-          answers,
-          observation,
-          consent_documents:
-            consentDocuments,
+  .trust-list {
 
-          ticket,
+    flex-direction: column;
 
-          rule_version:
-            RULE_VERSION
-        }),
+    align-items: flex-start;
+  }
 
-        triagem.classification,
+  .katerina-stage {
 
-        triagem.rationale,
+    min-height: 370px;
 
-        "novo",
+    padding:
+      25px
+      15px;
+  }
 
-        JSON.stringify({
-          ticket,
+  .triage-screen {
 
-          sector,
+    margin:
+      30px auto
+      50px;
 
-          relevance:
-            triagem.relevance,
+    padding:
+      22px
+      17px;
+  }
 
-          relevance_label:
-            triagem.relevance_label,
+  .triage-header h2 {
 
-          attention:
-            triagem.attention,
+    font-size: 25px;
+  }
 
-          documents:
-            triagem.documents,
+  .question-area {
 
-          education:
-            triagem.education,
+    min-height: 300px;
+  }
 
-          consent_documents:
-            consentDocuments,
+  .triage-actions {
 
-          rule_version:
-            RULE_VERSION
-        }),
+    flex-direction: column-reverse;
 
-        createdAt
-      )
-      .run();
+    align-items: stretch;
+  }
 
+  .triage-actions .button {
 
-    /*
-     * Registro confirmado.
-     */
+    width: 100%;
+  }
 
-    return json({
+  .result-screen {
 
-      ok: true,
-
-      saved: true,
-
-      ticket,
-
-      triagem: {
-
-        ...triagem,
-
-        ticket,
-
-        created_at:
-          createdAt,
-
-        consent_documents:
-          consentDocuments
-      }
-
-    });
-
-
-  } catch (error) {
-
-    console.error(
-      "Erro D1 /api/triagem:",
-      error
-    );
-
-
-    return json({
-
-      ok: false,
-
-      saved: false,
-
-      ticket,
-
-      error:
-        "Não foi possível registrar a triagem no momento.",
-
-      triagem: {
-
-        ...triagem,
-
-        ticket,
-
-        created_at:
-          createdAt,
-
-        consent_documents:
-          consentDocuments
-      }
-
-    }, 500);
+    margin-top: 30px;
   }
 }
 
 
 /* =========================================================
-   ADMIN — GET /api/admin/leads
+   REDUÇÃO DE MOVIMENTO
    ========================================================= */
 
-async function handleAdminLeads(
-  request,
-  env,
-  url
-) {
+@media (prefers-reduced-motion: reduce) {
 
-  const denied =
-    requireAdmin(
-      request,
-      env
-    );
+  *,
+  *::before,
+  *::after {
 
-  if (denied) {
-    return denied;
-  }
+    animation-duration: .01ms !important;
 
+    animation-iteration-count: 1 !important;
 
-  if (!env.DB) {
+    scroll-behavior: auto !important;
 
-    return errorResponse(
-      "Banco de dados não configurado.",
-      500
-    );
-  }
-
-
-  const status =
-    clean(
-      url.searchParams.get(
-        "status"
-      )
-    );
-
-
-  const limitRaw =
-    Number(
-      url.searchParams.get(
-        "limit"
-      ) || 100
-    );
-
-
-  const limit =
-    Math.min(
-      Math.max(
-        Number.isFinite(limitRaw)
-          ? limitRaw
-          : 100,
-        1
-      ),
-      500
-    );
-
-
-  try {
-
-    let result;
-
-
-    if (status) {
-
-      result =
-        await env.DB
-          .prepare(`
-            SELECT
-              id,
-              name,
-              phone,
-              benefit_type,
-              answers_json,
-              classification,
-              rationale,
-              status,
-              notes,
-              created_at,
-              contacted_at
-            FROM leads
-            WHERE status = ?
-            ORDER BY created_at DESC
-            LIMIT ?
-          `)
-          .bind(
-            status,
-            limit
-          )
-          .all();
-
-    } else {
-
-      result =
-        await env.DB
-          .prepare(`
-            SELECT
-              id,
-              name,
-              phone,
-              benefit_type,
-              answers_json,
-              classification,
-              rationale,
-              status,
-              notes,
-              created_at,
-              contacted_at
-            FROM leads
-            ORDER BY created_at DESC
-            LIMIT ?
-          `)
-          .bind(
-            limit
-          )
-          .all();
-    }
-
-
-    return json({
-
-      ok: true,
-
-      leads:
-        result.results || []
-
-    });
-
-
-  } catch (error) {
-
-    console.error(
-      "Erro admin leads:",
-      error
-    );
-
-    return errorResponse(
-      "Não foi possível carregar os atendimentos.",
-      500
-    );
+    transition-duration: .01ms !important;
   }
 }
 
 
 /* =========================================================
-   ADMIN — PATCH /api/admin/leads/status
+   KATERINA — NOVO VISUAL (assistente com headset)
    ========================================================= */
 
-async function handleAdminLeadStatus(
-  request,
-  env
-) {
-
-  const denied =
-    requireAdmin(
-      request,
-      env
-    );
-
-  if (denied) {
-    return denied;
-  }
-
-
-  if (!env.DB) {
-
-    return errorResponse(
-      "Banco de dados não configurado.",
-      500
-    );
-  }
-
-
-  let body;
-
-  try {
-
-    body =
-      await readJson(
-        request
-      );
-
-  } catch (error) {
-
-    return errorResponse(
-      error.message,
-      400
-    );
-  }
-
-
-  const id =
-    Number(
-      body.id
-    );
-
-
-  const status =
-    clean(
-      body.status
-    );
-
-
-  const allowedStatuses = [
-    "novo",
-    "contatado",
-    "fechado"
-  ];
-
-
-  if (
-    !Number.isInteger(id) ||
-    id <= 0
-  ) {
-
-    return errorResponse(
-      "ID inválido.",
-      422
-    );
-  }
-
-
-  if (
-    !allowedStatuses.includes(
-      status
-    )
-  ) {
-
-    return errorResponse(
-      "Status inválido.",
-      422
-    );
-  }
-
-
-  try {
-
-    const contactedAt =
-      status === "contatado"
-        ? new Date()
-            .toISOString()
-        : null;
-
-
-    await env.DB
-      .prepare(`
-        UPDATE leads
-        SET
-          status = ?,
-          contacted_at = ?
-        WHERE id = ?
-      `)
-      .bind(
-        status,
-        contactedAt,
-        id
-      )
-      .run();
-
-
-    return json({
-      ok: true,
-      id,
-      status
-    });
-
-
-  } catch (error) {
-
-    console.error(
-      "Erro status lead:",
-      error
-    );
-
-    return errorResponse(
-      "Não foi possível atualizar o atendimento.",
-      500
-    );
-  }
+.katerina {
+  width: 200px;
+  height: 250px;
+  overflow: hidden;
+  border-radius: 0 0 34px 34px;
 }
 
-
-/* =========================================================
-   ADMIN — GET /api/admin/stats
-   ========================================================= */
-
-async function handleAdminStats(
-  request,
-  env
-) {
-
-  const denied =
-    requireAdmin(
-      request,
-      env
-    );
-
-  if (denied) {
-    return denied;
-  }
-
-
-  if (!env.DB) {
-
-    return errorResponse(
-      "Banco de dados não configurado.",
-      500
-    );
-  }
-
-
-  try {
-
-    const result =
-      await env.DB
-        .prepare(`
-          SELECT
-            COUNT(*) AS total,
-
-            SUM(
-              CASE
-                WHEN status = 'novo'
-                THEN 1
-                ELSE 0
-              END
-            ) AS novos,
-
-            SUM(
-              CASE
-                WHEN status = 'contatado'
-                THEN 1
-                ELSE 0
-              END
-            ) AS contatados,
-
-            SUM(
-              CASE
-                WHEN status = 'fechado'
-                THEN 1
-                ELSE 0
-              END
-            ) AS fechados
-
-          FROM leads
-        `)
-        .first();
-
-
-    return json({
-
-      ok: true,
-
-      stats: {
-        total:
-          Number(
-            result?.total || 0
-          ),
-
-        novos:
-          Number(
-            result?.novos || 0
-          ),
-
-        contatados:
-          Number(
-            result?.contatados || 0
-          ),
-
-        fechados:
-          Number(
-            result?.fechados || 0
-          )
-      }
-
-    });
-
-
-  } catch (error) {
-
-    console.error(
-      "Erro admin stats:",
-      error
-    );
-
-    return errorResponse(
-      "Não foi possível carregar as estatísticas.",
-      500
-    );
-  }
+.katerina-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
-
-/* =========================================================
-   ROTEADOR
-   ========================================================= */
-
-async function router(
-  request,
-  env
-) {
-
-  const url =
-    new URL(
-      request.url
-    );
-
-
-  const pathname =
-    url.pathname;
-
-
-  const method =
-    request.method
-      .toUpperCase();
-
-
-  /*
-   * OPTIONS
-   */
-
-  if (method === "OPTIONS") {
-
-    return new Response(
-      null,
-      {
-        status: 204
-      }
-    );
-  }
-
-
-  /*
-   * Health
-   */
-
-  if (
-    pathname === "/api/health" &&
-    method === "GET"
-  ) {
-
-    return handleHealth(
-      env
-    );
-  }
-
-
-  /*
-   * Setores
-   */
-
-  if (
-    pathname === "/api/sectors" &&
-    method === "GET"
-  ) {
-
-    return handleSectors();
-  }
-
-
-  /*
-   * Benefícios / assuntos
-   */
-
-  if (
-    pathname === "/api/benefits" &&
-    method === "GET"
-  ) {
-
-    return handleBenefits(
-      url
-    );
-  }
-
-
-  /*
-   * Triagem
-   */
-
-  if (
-    pathname === "/api/triagem" &&
-    method === "POST"
-  ) {
-
-    return handleTriagem(
-      request,
-      env
-    );
-  }
-
-
-  /*
-   * ADMIN — leads
-   */
-
-  if (
-    pathname === "/api/admin/leads" &&
-    method === "GET"
-  ) {
-
-    return handleAdminLeads(
-      request,
-      env,
-      url
-    );
-  }
-
-
-  /*
-   * ADMIN — alterar status
-   */
-
-  if (
-    pathname === "/api/admin/leads/status" &&
-    method === "PATCH"
-  ) {
-
-    return handleAdminLeadStatus(
-      request,
-      env
-    );
-  }
-
-
-  /*
-   * ADMIN — estatísticas
-   */
-
-  if (
-    pathname === "/api/admin/stats" &&
-    method === "GET"
-  ) {
-
-    return handleAdminStats(
-      request,
-      env
-    );
-  }
-
-
-  /*
-   * API inexistente
-   */
-
-  if (
-    pathname.startsWith(
-      "/api/"
-    )
-  ) {
-
-    return errorResponse(
-      "Endpoint não encontrado.",
-      404
-    );
-  }
-
-
-  /*
-   * Assets públicos
-   *
-   * O binding ASSETS entrega:
-   * index.html
-   * CSS
-   * JS
-   * imagens
-   * etc.
-   */
-
-  if (env.ASSETS) {
-
-    return env.ASSETS.fetch(
-      request
-    );
-  }
-
-
-  return new Response(
-    "PREV",
-    {
-      status: 200,
-      headers: {
-        "Content-Type":
-          "text/plain; charset=utf-8"
-      }
-    }
-  );
+.katerina-core {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: corePulse 2.8s ease-in-out infinite;
 }
 
+.katerina-eyes {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: katerinaBlink 5s infinite;
+}
 
-/* =========================================================
-   WORKER
-   ========================================================= */
+.katerina-mouth {
+  transform-box: fill-box;
+  transform-origin: center top;
+}
 
-export default {
+.katerina-speaking .katerina-mouth {
+  animation: katerinaTalk .32s ease-in-out infinite;
+}
 
-  async fetch(
-    request,
-    env,
-    ctx
-  ) {
+@keyframes katerinaTalk {
+  0%, 100% { transform: scaleY(1); }
+  50%      { transform: scaleY(1.9); }
+}
 
-    const cors =
-      corsHeaders(
-        request
-      );
-
-
-    try {
-
-      const response =
-        await router(
-          request,
-          env
-        );
-
-
-      /*
-       * Adiciona CORS sem destruir
-       * os headers originais.
-       */
-
-      const headers =
-        new Headers(
-          response.headers
-        );
-
-
-      for (
-        const [key, value]
-        of Object.entries(cors)
-      ) {
-
-        headers.set(
-          key,
-          value
-        );
-      }
-
-
-      return new Response(
-        response.body,
-        {
-          status:
-            response.status,
-
-          statusText:
-            response.statusText,
-
-          headers
-        }
-      );
-
-
-    } catch (error) {
-
-      console.error(
-        "PREV Worker error:",
-        error
-      );
-
-
-      return new Response(
-
-        JSON.stringify({
-          ok: false,
-          error:
-            "Erro interno do servidor."
-        }),
-
-        {
-          status: 500,
-
-          headers: {
-            ...JSON_HEADERS,
-            ...cors
-          }
-        }
-      );
-    }
-  }
-
-};
+@media (max-width: 640px) {
+  .katerina { width: 170px; height: 212px; }
+}
