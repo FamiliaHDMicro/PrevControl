@@ -29,7 +29,10 @@ const KATERINA_CONFIG = {
 
   rate: 0.96,
 
-  pitch: 1.0,
+  pitch: 1.02,
+
+  /* TTS do servidor: ligar quando existir /api/tts */
+  serverTTS: false,
 
   volume: 1.0
 };
@@ -221,6 +224,199 @@ function katerinaSayText(text) {
 
 
 /* =========================================================
+   HUMANIZADOR DA KATERINA
+   Adaptado do Audio-Humanizador (dicionário de pronúncia,
+   pausas humanas e escolha de voz). Só muda COMO ela fala:
+   o texto na tela continua exatamente igual.
+   ========================================================= */
+
+/*
+ * Pronúncia (alias fonético). A chave é o que está escrito,
+ * o valor é como a Katerina deve dizer.
+ */
+const KATERINA_PRONUNCIA = {
+  /* Previdência e trabalho */
+  "inss": "í-ene-ésse-ésse",
+  "fgts": "éfe-gê-tê-ésse",
+  "bpc": "bê-pê-cê",
+  "loas": "lôas",
+  "cnis": "cê-ene-í-ésse",
+  "cct": "cê-cê-tê",
+  "clt": "cê-éle-tê",
+  "cpf": "cê-pê-éfe",
+  "cnpj": "cê-ene-pê-jota",
+  "rg": "érre-gê",
+  "mei": "mêi",
+  "gov.br": "gov ponto bê-érre",
+  "art.": "artigo",
+
+  /* Termos técnicos (do banco de palavras) */
+  "pix": "píks",
+  "wifi": "uífai",
+  "whatsapp": "uótsap",
+  "usb": "i-usbê",
+  "pdf": "pê-dê-éfe",
+  "gps": "gê-pê-ésse",
+  "nfc": "êne-êfê-cê",
+  "e-mail": "i-mêil",
+  "email": "i-mêil"
+};
+
+/* Ordem: termos mais longos primeiro ("gov.br" antes de "br"). */
+const KATERINA_TERMOS_ORDENADOS =
+  Object.keys(KATERINA_PRONUNCIA)
+    .sort((a, b) => b.length - a.length);
+
+function katerinaEscaparRegex(valor) {
+  return valor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function katerinaHumanizar(texto) {
+  let fala = String(texto);
+
+  /* Valores: "R$ 1.518,00" vira "1.518,00 reais" (na ordem certa). */
+  fala = fala.replace(
+    /R\$\s*([\d][\d.,]*)/gi,
+    "$1 reais"
+  );
+
+  /* Porcentagem: "30%" vira "30 por cento". */
+  fala = fala.replace(/%/g, " por cento");
+
+  /* Dicionário de pronúncia. */
+  for (const termo of KATERINA_TERMOS_ORDENADOS) {
+    const alias = KATERINA_PRONUNCIA[termo];
+    const padrao = new RegExp(
+      "(?<![\\p{L}\\d])" +
+        katerinaEscaparRegex(termo) +
+        "(?![\\p{L}\\d])",
+      "giu"
+    );
+    fala = fala.replace(padrao, alias);
+  }
+
+  /* Letras repetidas ("aaaaa") viram uma só, como no original. */
+  fala = fala.replace(/([a-zà-ú])\1{2,}/gi, "$1");
+
+  return fala.replace(/\s+/g, " ").trim();
+}
+
+/*
+ * Pausas humanas. O navegador não entende SSML, então
+ * quebramos o texto em pedaços e esperamos entre eles.
+ */
+const KATERINA_PAUSAS = {
+  "...": 600,
+  "…": 600,
+  ",": 200,
+  ";": 250,
+  ":": 250,
+  ".": 350,
+  "!": 400,
+  "?": 500
+};
+
+function katerinaDividirEmPartes(texto) {
+  const partes = [];
+  /* Ponto e vírgula dentro de números (1.518,00) não cortam a fala. */
+  const regra =
+    /((?:[^.,;:!?…]|(?<=\d)[.,](?=\d))+)(\.{3}|…|[.,;:!?])?/g;
+  let achado;
+
+  while ((achado = regra.exec(texto)) !== null) {
+    const pedaco = (achado[1] || "").trim();
+    const sinal = achado[2] || "";
+
+    if (!pedaco) continue;
+
+    partes.push({
+      texto: pedaco + sinal,
+      pausa: KATERINA_PAUSAS[sinal] || 0
+    });
+  }
+
+  return partes.length
+    ? partes
+    : [{ texto: texto, pausa: 0 }];
+}
+
+/*
+ * Voz: prefere as vozes naturais pt-BR (no Edge são as mesmas
+ * Francisca e Thalita do humanizador). Se não houver, usa
+ * qualquer voz pt-BR do aparelho.
+ */
+function katerinaEscolherVoz() {
+  if (!("speechSynthesis" in window)) return null;
+
+  const vozes = window.speechSynthesis.getVoices() || [];
+  const ptbr = vozes.filter((v) =>
+    /^pt[-_]BR/i.test(v.lang)
+  );
+
+  if (!ptbr.length) return null;
+
+  const preferencias = [
+    /francisca/i,
+    /thalita/i,
+    /natural|online/i,
+    /google/i,
+    /maria|luciana|vit[oó]ria/i
+  ];
+
+  for (const preferencia of preferencias) {
+    const achada = ptbr.find((v) => preferencia.test(v.name));
+    if (achada) return achada;
+  }
+
+  return ptbr[0];
+}
+
+function katerinaFalarPartes(partes, token) {
+  let indice = 0;
+
+  const proxima = () => {
+    if (token !== katerinaState.speechToken) return;
+
+    if (indice >= partes.length) {
+      katerinaSpeaking(false);
+      return;
+    }
+
+    const parte = partes[indice++];
+    const fala = new SpeechSynthesisUtterance(parte.texto);
+
+    fala.lang = KATERINA_CONFIG.language;
+    fala.rate = KATERINA_CONFIG.rate;
+    fala.pitch = KATERINA_CONFIG.pitch;
+    fala.volume = KATERINA_CONFIG.volume;
+
+    const voz = katerinaEscolherVoz();
+    if (voz) {
+      try {
+        fala.voice = voz;
+      } catch (error) {
+        /* usa a voz padrão do aparelho */
+      }
+    }
+
+    fala.onend = () => {
+      setTimeout(proxima, parte.pausa);
+    };
+
+    fala.onerror = () => {
+      if (token === katerinaState.speechToken) {
+        katerinaSpeaking(false);
+      }
+    };
+
+    window.speechSynthesis.speak(fala);
+  };
+
+  proxima();
+}
+
+
+/* =========================================================
    VOZ — ÚNICA
    ========================================================= */
 
@@ -235,155 +431,81 @@ async function katerinaSpeak(text) {
 
   if (!cleanText) return;
 
-
   /*
    * Evita duas falas simultâneas.
    */
-
   stopKaterinaSpeech();
 
   katerinaSpeaking(true);
 
+  const token = katerinaState.speechToken;
 
   /*
-   * Primeiro tentamos o TTS do próprio PREV.
-   *
-   * A voz enviada é SEMPRE a mesma.
+   * Texto como ela FALA (siglas, valores, pausas).
+   * O texto da tela não muda.
    */
+  const textoFalado = katerinaHumanizar(cleanText);
 
-  try {
+  /*
+   * TTS do servidor (desligado até existir /api/tts no Worker).
+   */
+  if (KATERINA_CONFIG.serverTTS) {
+    try {
+      const response = await fetch(
+        `/api/tts?text=${encodeURIComponent(textoFalado)}&voice=${encodeURIComponent(KATERINA_CONFIG.voice)}`
+      );
 
-    const response = await fetch(
-      `/api/tts?text=${encodeURIComponent(cleanText)}&voice=${encodeURIComponent(KATERINA_CONFIG.voice)}`
-    );
+      if (token !== katerinaState.speechToken) return;
 
+      if (response.ok) {
+        const contentType =
+          response.headers.get("content-type") || "";
 
-    if (response.ok) {
+        if (contentType.includes("audio")) {
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const audio = new Audio(url);
 
-      const contentType =
-        response.headers.get("content-type") || "";
+          katerinaState.currentAudio = audio;
+          audio.volume = KATERINA_CONFIG.volume;
 
+          audio.onended = () => {
+            URL.revokeObjectURL(url);
+            katerinaState.currentAudio = null;
+            katerinaSpeaking(false);
+          };
 
-      /*
-       * Se o Worker devolver áudio,
-       * reproduzimos diretamente.
-       */
+          audio.onerror = () => {
+            URL.revokeObjectURL(url);
+            katerinaState.currentAudio = null;
+            katerinaSpeaking(false);
+          };
 
-      if (contentType.includes("audio")) {
-
-        const blob =
-          await response.blob();
-
-        const url =
-          URL.createObjectURL(blob);
-
-        const audio =
-          new Audio(url);
-
-        katerinaState.currentAudio =
-          audio;
-
-        audio.volume =
-          KATERINA_CONFIG.volume;
-
-
-        audio.onended = () => {
-
-          URL.revokeObjectURL(url);
-
-          katerinaState.currentAudio =
-            null;
-
-          katerinaSpeaking(false);
-
-        };
-
-
-        audio.onerror = () => {
-
-          URL.revokeObjectURL(url);
-
-          katerinaState.currentAudio =
-            null;
-
-          katerinaSpeaking(false);
-
-        };
-
-
-        await audio.play();
-
-        return;
-
+          await audio.play();
+          return;
+        }
       }
-
+    } catch (error) {
+      /* segue para a voz do navegador */
     }
-
-  } catch (error) {
-
-    /*
-     * Se o TTS ainda não existir,
-     * usamos o recurso de voz do navegador.
-     */
-
   }
 
-
   /*
-   * FALLBACK DO NAVEGADOR
-   *
-   * Não existe troca de personagem ou voz.
+   * VOZ DO NAVEGADOR, com pausas e pronúncia humanizadas.
    * O idioma permanece pt-BR.
    */
-
   if (
     "speechSynthesis" in window &&
     "SpeechSynthesisUtterance" in window
   ) {
-
-    const utterance =
-      new SpeechSynthesisUtterance(
-        cleanText
-      );
-
-    utterance.lang =
-      KATERINA_CONFIG.language;
-
-    utterance.rate =
-      KATERINA_CONFIG.rate;
-
-    utterance.pitch =
-      KATERINA_CONFIG.pitch;
-
-    utterance.volume =
-      KATERINA_CONFIG.volume;
-
-
-    utterance.onend = () => {
-
-      katerinaSpeaking(false);
-
-    };
-
-
-    utterance.onerror = () => {
-
-      katerinaSpeaking(false);
-
-    };
-
-
-    window.speechSynthesis.speak(
-      utterance
+    katerinaFalarPartes(
+      katerinaDividirEmPartes(textoFalado),
+      token
     );
-
     return;
-
   }
 
-
   katerinaSpeaking(false);
-
 }
 
 
@@ -392,6 +514,9 @@ async function katerinaSpeak(text) {
    ========================================================= */
 
 function stopKaterinaSpeech() {
+
+  katerinaState.speechToken =
+    (katerinaState.speechToken || 0) + 1;
 
   if (
     katerinaState.currentAudio
